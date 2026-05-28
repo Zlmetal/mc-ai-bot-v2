@@ -1,0 +1,37 @@
+services:
+  # MindCraft - Minecraft AI Bot 核心
+  mindcraft:
+    image: node:20-slim
+    container_name: mindcraft
+    restart: unless-stopped
+    working_dir: /app
+    volumes:
+      - ./mindcraft:/app
+      - mindcraft-keys:/app/keys.json
+    environment:
+      - TZ=Asia/Shanghai
+      - SETTINGS_JSON={"host":"host.docker.internal","port":25565,"auth":"offline","auto_open_ui":false,"profiles":["./profiles/andy.json"]}
+    command: bash -c "npm install && node main.js"
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
+    mem_limit: 512m
+
+  # Web 服务 - 聊天界面 + 记忆 + 语音
+  web:
+    build: .
+    container_name: mc-ai-bot-web
+    restart: unless-stopped
+    ports:
+      - "3800:3000"
+    volumes:
+      - ./data:/app/data
+    environment:
+      - TZ=Asia/Shanghai
+      - MINDCRAFT_HOST=mindcraft
+      - MINDCRAFT_PORT=8080
+    depends_on:
+      - mindcraft
+    mem_limit: 256m
+
+volumes:
+  mindcraft-keys:
