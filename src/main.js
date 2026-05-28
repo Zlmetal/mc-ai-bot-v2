@@ -67,6 +67,28 @@ function saveConfig(config) {
 
 const config = loadConfig()
 
+// 从环境变量读取 MC 服务器配置
+if (process.env.MC_HOST) config.mc.host = process.env.MC_HOST
+if (process.env.MC_PORT) config.mc.port = parseInt(process.env.MC_PORT)
+if (process.env.MC_AUTH) config.mc.auth = process.env.MC_AUTH
+if (process.env.MINDCRAFT_HOST) config.mindcraft.host = process.env.MINDCRAFT_HOST
+if (process.env.MINDCRAFT_PORT) config.mindcraft.port = parseInt(process.env.MINDCRAFT_PORT)
+
+// 写入 MindCraft 配置
+const mindcraftSettingsPath = path.join(__dirname, '..', 'mindcraft', 'settings.js')
+if (fs.existsSync(mindcraftSettingsPath)) {
+  try {
+    let settingsContent = fs.readFileSync(mindcraftSettingsPath, 'utf-8')
+    settingsContent = settingsContent.replace(/"host":\s*"[^"]*"/, `"host": "${config.mc.host || 'host.docker.internal'}"`)
+    settingsContent = settingsContent.replace(/"port":\s*\d+/, `"port": ${config.mc.port || 25565}`)
+    settingsContent = settingsContent.replace(/"auth":\s*"[^"]*"/, `"auth": "${config.mc.auth || 'offline'}"`)
+    fs.writeFileSync(mindcraftSettingsPath, settingsContent, 'utf-8')
+    console.log('[MindCraft] 配置已更新')
+  } catch (e) {
+    console.error('[MindCraft] 配置更新失败:', e.message)
+  }
+}
+
 // ========== 初始化模块 ==========
 
 const memory = new MemorySystem()
