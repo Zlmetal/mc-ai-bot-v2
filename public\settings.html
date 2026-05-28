@@ -1,0 +1,245 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>MC AI Bot - 设置</title>
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; background: #0a0a0a; color: #e0e0e0; min-height: 100vh; padding: 20px; }
+    .container { max-width: 600px; margin: 0 auto; }
+    h1 { font-size: 24px; margin-bottom: 8px; }
+    .subtitle { color: #888; font-size: 14px; margin-bottom: 24px; }
+    .section { background: #1a1a2e; border-radius: 12px; padding: 20px; margin-bottom: 16px; border: 1px solid #333; }
+    .section-title { font-size: 16px; font-weight: 600; margin-bottom: 16px; color: #4caf50; }
+    .field { margin-bottom: 16px; }
+    .field:last-child { margin-bottom: 0; }
+    label { display: block; font-size: 14px; color: #aaa; margin-bottom: 6px; }
+    input, select, textarea { width: 100%; background: #0d0d1a; border: 1px solid #333; border-radius: 8px; padding: 10px 14px; color: white; font-size: 15px; outline: none; font-family: inherit; }
+    input:focus, select:focus, textarea:focus { border-color: #2563eb; }
+    .row { display: flex; gap: 12px; }
+    .row > * { flex: 1; }
+    .checkbox-row { display: flex; align-items: center; gap: 8px; }
+    .checkbox-row input { width: auto; }
+    .btn-primary { width: 100%; background: #2563eb; color: white; border: none; border-radius: 12px; padding: 14px; font-size: 16px; font-weight: 600; cursor: pointer; transition: background 0.2s; }
+    .btn-primary:hover { background: #1d4ed8; }
+    .btn-secondary { width: 100%; background: #1e1e2e; color: #aaa; border: 1px solid #333; border-radius: 12px; padding: 14px; font-size: 16px; cursor: pointer; transition: all 0.2s; }
+    .btn-secondary:hover { border-color: #4caf50; color: #4caf50; }
+    .btn-group { display: flex; gap: 12px; margin-top: 12px; }
+    .btn-group > * { flex: 1; }
+    .message { padding: 12px 16px; border-radius: 8px; margin-bottom: 16px; font-size: 14px; display: none; }
+    .message.success { background: #1b5e20; color: #a5d6a7; display: block; }
+    .message.error { background: #b71c1c; color: #ef9a9a; display: block; }
+    .message.info { background: #0d47a1; color: #90caf9; display: block; }
+    .nav-link { display: inline-block; color: #2563eb; text-decoration: none; font-size: 14px; margin-bottom: 16px; }
+    .help-text { font-size: 12px; color: #666; margin-top: 4px; }
+    .status-badge { display: inline-block; padding: 4px 8px; border-radius: 4px; font-size: 12px; }
+    .status-badge.online { background: #1b5e20; color: #a5d6a7; }
+    .status-badge.offline { background: #b71c1c; color: #ef9a9a; }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <a href="/" class="nav-link">← 返回聊天</a>
+    <h1>⚙️ 设置</h1>
+    <p class="subtitle">配置 MC AI Bot</p>
+
+    <div id="message" class="message"></div>
+
+    <!-- MindCraft 连接 -->
+    <div class="section">
+      <div class="section-title">🧠 MindCraft 连接</div>
+      <div class="field">
+        <label>状态：<span id="mindcraftStatus" class="status-badge offline">未连接</span></label>
+      </div>
+      <div class="row">
+        <div class="field">
+          <label>MindCraft 地址</label>
+          <input type="text" id="mindcraftHost" value="localhost">
+        </div>
+        <div class="field">
+          <label>端口</label>
+          <input type="number" id="mindcraftPort" value="8080">
+        </div>
+      </div>
+      <div class="help-text">MindCraft 默认端口 8080，如果 MindCraft 跑在同一个 Docker 网络里，地址填容器名</div>
+    </div>
+
+    <!-- MC 服务器 -->
+    <div class="section">
+      <div class="section-title">🎮 Minecraft 服务器</div>
+      <div class="field">
+        <label>服务器地址</label>
+        <input type="text" id="mcHost" placeholder="例如：192.168.1.100">
+      </div>
+      <div class="row">
+        <div class="field">
+          <label>端口</label>
+          <input type="number" id="mcPort" value="25565">
+        </div>
+        <div class="field">
+          <label>版本（留空自动检测）</label>
+          <input type="text" id="mcVersion" placeholder="auto">
+        </div>
+      </div>
+      <div class="help-text">这些配置会写入 MindCraft 的 settings.js</div>
+    </div>
+
+    <!-- LLM 配置 -->
+    <div class="section">
+      <div class="section-title">🤖 AI 大脑</div>
+      <div class="field">
+        <label>API 提供者</label>
+        <select id="llmProvider">
+          <option value="mimo">MiMo Token Plan (小米)</option>
+          <option value="deepseek">DeepSeek</option>
+          <option value="openai">OpenAI</option>
+          <option value="openrouter">OpenRouter</option>
+          <option value="ollama">Ollama (本地)</option>
+        </select>
+      </div>
+      <div class="field">
+        <label>API 地址</label>
+        <input type="text" id="llmBaseUrl" placeholder="https://token-plan-cn.xiaomimimo.com/v1">
+      </div>
+      <div class="field">
+        <label>API Key</label>
+        <input type="password" id="llmApiKey" placeholder="sk-...">
+      </div>
+      <div class="field">
+        <label>模型名称</label>
+        <input type="text" id="llmModel" value="MiMo-V2.5">
+      </div>
+      <div class="btn-group">
+        <button class="btn-secondary" id="btnTestLLM">测试连接</button>
+      </div>
+    </div>
+
+    <!-- TTS 配置 -->
+    <div class="section">
+      <div class="section-title">🔊 语音合成</div>
+      <div class="field">
+        <div class="checkbox-row">
+          <input type="checkbox" id="ttsEnabled" checked>
+          <label for="ttsEnabled" style="margin: 0">启用语音合成</label>
+        </div>
+      </div>
+      <div class="field">
+        <label>音色描述</label>
+        <input type="text" id="ttsVoice" placeholder="温柔的年轻男性，声音清晰">
+      </div>
+    </div>
+
+    <!-- AI 人设 -->
+    <div class="section">
+      <div class="section-title">👤 AI 人设</div>
+      <div class="field">
+        <label>名字</label>
+        <input type="text" id="botName" value="小智">
+      </div>
+      <div class="field">
+        <label>性格特征</label>
+        <input type="text" id="botPersonality" value="勤劳、好奇、有点话多、喜欢探索">
+      </div>
+      <div class="field">
+        <label>说话风格</label>
+        <textarea id="botStyle" rows="2">说话简洁但有温度，偶尔开玩笑，用中文</textarea>
+      </div>
+    </div>
+
+    <button class="btn-primary" id="btnSave">保存配置</button>
+  </div>
+
+  <script>
+    const $ = id => document.getElementById(id)
+
+    const PROVIDERS = {
+      'mimo': { baseUrl: 'https://token-plan-cn.xiaomimimo.com/v1', model: 'MiMo-V2.5' },
+      'deepseek': { baseUrl: 'https://api.deepseek.com', model: 'deepseek-chat' },
+      'openai': { baseUrl: 'https://api.openai.com', model: 'gpt-4o-mini' },
+      'openrouter': { baseUrl: 'https://openrouter.ai/api', model: 'openai/gpt-4o-mini' },
+      'ollama': { baseUrl: 'http://localhost:11434', model: 'qwen2.5:7b' }
+    }
+
+    $('llmProvider').addEventListener('change', () => {
+      const p = $('llmProvider').value
+      if (PROVIDERS[p]) { $('llmBaseUrl').value = PROVIDERS[p].baseUrl; $('llmModel').value = PROVIDERS[p].model }
+    })
+
+    async function loadConfig() {
+      try {
+        const resp = await fetch('/api/config')
+        const config = await resp.json()
+
+        $('mindcraftHost').value = config.mindcraft?.host || 'localhost'
+        $('mindcraftPort').value = config.mindcraft?.port || 8080
+        $('mcHost').value = config.mc?.host || ''
+        $('mcPort').value = config.mc?.port || 25565
+        $('mcVersion').value = config.mc?.version || ''
+        $('llmProvider').value = config.llm?.provider || 'mimo'
+        $('llmBaseUrl').value = config.llm?.baseUrl || ''
+        $('llmApiKey').value = config.llm?.apiKey || ''
+        $('llmModel').value = config.llm?.model || 'MiMo-V2.5'
+        $('ttsEnabled').checked = config.tts?.enabled !== false
+        $('ttsVoice').value = config.tts?.voice || ''
+        $('botName').value = config.bot?.name || '小智'
+        $('botPersonality').value = config.bot?.personality || ''
+        $('botStyle').value = config.bot?.style || ''
+
+        const statusEl = $('mindcraftStatus')
+        if (config._mindcraft_connected) {
+          statusEl.textContent = '已连接'
+          statusEl.className = 'status-badge online'
+        } else {
+          statusEl.textContent = '未连接'
+          statusEl.className = 'status-badge offline'
+        }
+
+        if (!config._configured) showMessage('首次使用，请填写配置', 'info')
+      } catch (err) {
+        showMessage('加载配置失败: ' + err.message, 'error')
+      }
+    }
+
+    function buildConfig() {
+      const apiKey = $('llmApiKey').value
+      const config = {
+        mindcraft: { host: $('mindcraftHost').value, port: parseInt($('mindcraftPort').value) || 8080 },
+        mc: { host: $('mcHost').value, port: parseInt($('mcPort').value) || 25565, version: $('mcVersion').value || 'auto' },
+        llm: { provider: $('llmProvider').value, baseUrl: $('llmBaseUrl').value, model: $('llmModel').value },
+        tts: { enabled: $('ttsEnabled').checked, voice: $('ttsVoice').value, model: 'MiMo-V2.5-TTS-VoiceDesign' },
+        bot: { name: $('botName').value || '小智', personality: $('botPersonality').value, style: $('botStyle').value }
+      }
+      if (apiKey && !apiKey.includes('...')) config.llm.apiKey = apiKey
+      return config
+    }
+
+    async function saveConfig() {
+      try {
+        const resp = await fetch('/api/config', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(buildConfig()) })
+        const result = await resp.json()
+        if (result.success) showMessage('✅ 配置已保存', 'success')
+        else showMessage('保存失败: ' + result.message, 'error')
+      } catch (err) { showMessage('保存失败: ' + err.message, 'error') }
+    }
+
+    async function testLLM() {
+      const apiKey = $('llmApiKey').value
+      if (!apiKey || apiKey.includes('...')) { showMessage('❌ 请先填写 API Key', 'error'); return }
+      showMessage('正在测试连接...', 'info')
+      try {
+        const resp = await fetch('/api/test-llm', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(buildConfig()) })
+        const result = await resp.json()
+        if (result.success) showMessage('✅ 连接成功！AI 回复: ' + result.reply, 'success')
+        else showMessage('❌ 连接失败: ' + result.message, 'error')
+      } catch (err) { showMessage('❌ 测试失败: ' + err.message, 'error') }
+    }
+
+    function showMessage(text, type) { const el = $('message'); el.textContent = text; el.className = 'message ' + type }
+
+    $('btnSave').addEventListener('click', saveConfig)
+    $('btnTestLLM').addEventListener('click', testLLM)
+    loadConfig()
+  </script>
+</body>
+</html>
