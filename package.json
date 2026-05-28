@@ -1,0 +1,22 @@
+{
+  "name": "mc-ai-bot-v2",
+  "version": "2.0.0",
+  "description": "Minecraft AI Player - 基于 MindCraft + Web界面 + 记忆系统 + 语音交互",
+  "type": "module",
+  "main": "src/main.js",
+  "scripts": {
+    "start": "node src/main.js",
+    "mindcraft": "cd mindcraft && node main.js",
+    "dev": "node --watch src/main.js"
+  },
+  "dependencies": {
+    "express": "^4.21.0",
+    "socket.io-client": "^4.8.0",
+    "ws": "^8.18.0",
+    "better-sqlite3": "^12.10.0",
+    "node-fetch": "^3.3.0"
+  },
+  "engines": {
+    "node": ">=18.0.0"
+  }
+}
