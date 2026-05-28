@@ -191,6 +191,52 @@ app.post('/api/config', (req, res) => {
   }
 })
 
+// API: 获取模型列表
+app.post('/api/fetch-models', async (req, res) => {
+  try {
+    const { baseUrl, apiKey } = req.body
+    if (!baseUrl) return res.json({ success: false, message: '请填写 API 地址' })
+
+    // 尝试常见的模型列表端点
+    const endpoints = ['/models', '/v1/models']
+    let models = []
+
+    for (const endpoint of endpoints) {
+      try {
+        const url = baseUrl.replace(/\/$/, '') + endpoint
+        const headers = { 'Content-Type': 'application/json' }
+        if (apiKey) headers['Authorization'] = `Bearer ${apiKey}`
+
+        const response = await fetch(url, { headers, signal: AbortSignal.timeout(10000) })
+        if (!response.ok) continue
+
+        const data = await response.json()
+        
+        // 解析不同格式的响应
+        if (data.data && Array.isArray(data.data)) {
+          // OpenAI 格式: { data: [{ id: "model-name" }] }
+          models = data.data.map(m => ({ id: m.id || m.name || m }))
+        } else if (Array.isArray(data)) {
+          // 直接数组格式
+          models = data.map(m => ({ id: typeof m === 'string' ? m : m.id || m.name }))
+        }
+
+        if (models.length > 0) break
+      } catch (e) {
+        continue
+      }
+    }
+
+    if (models.length > 0) {
+      res.json({ success: true, models })
+    } else {
+      res.json({ success: false, message: '未获取到模型列表，请手动输入模型名' })
+    }
+  } catch (err) {
+    res.json({ success: false, message: err.message })
+  }
+})
+
 // API: 测试 LLM 连接
 app.post('/api/test-llm', async (req, res) => {
   try {
