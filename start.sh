@@ -29,7 +29,7 @@ const settings = {
     "only_chat_with": [],
     "speak": false,
     "chat_ingame": true,
-    "language": "zh",
+    "language": "en",
     "render_bot_view": false,
     "allow_insecure_coding": false,
     "allow_vision": false,
@@ -52,36 +52,14 @@ EOF
 
 echo "[启动] MindCraft settings.js 已生成"
 
-# 同步 API Key 到 MindCraft 的 keys.json
-# 优先用环境变量，否则从 config.json 读取
-sync_keys() {
-  local api_key="$LLM_API_KEY"
-  
-  # 如果环境变量没有，尝试从 config.json 读取
-  if [ -z "$api_key" ] && [ -f /app/data/config.json ]; then
-    api_key=$(cat /app/data/config.json | grep -o '"apiKey"[[:space:]]*:[[:space:]]*"[^"]*"' | head -1 | sed 's/.*"apiKey"[[:space:]]*:[[:space:]]*"\([^"]*\)".*/\1/')
-  fi
-  
-  if [ -n "$api_key" ] && [ "$api_key" != "sk-..." ]; then
-    cat > /app/mindcraft/keys.json << EOF
-{
-  "OPENAI_API_KEY": "$api_key"
-}
-EOF
-    echo "[启动] ✅ keys.json 已同步 API Key"
-  else
-    echo '{}' > /app/mindcraft/keys.json
-    echo "[启动] ⚠️ 未找到 API Key，请在设置页面配置"
-  fi
-}
+# 首次同步 API Key
+cd /app && node src/sync-keys.js
 
-sync_keys
-
-# 后台循环：每 60 秒检查 config.json 是否更新了 API Key，同步到 keys.json
+# 后台循环：每 30 秒同步一次 API Key
 (
   while true; do
-    sleep 60
-    sync_keys
+    sleep 30
+    cd /app && node src/sync-keys.js 2>/dev/null
   done
 ) &
 SYNC_PID=$!
