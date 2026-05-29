@@ -159,6 +159,9 @@ app.get('/api/config', (req, res) => {
   if (safeConfig.llm?.apiKey) {
     safeConfig.llm.apiKey = safeConfig.llm.apiKey.substring(0, 8) + '...'
   }
+  if (safeConfig.tts?.apiKey) {
+    safeConfig.tts.apiKey = safeConfig.tts.apiKey.substring(0, 8) + '...'
+  }
   safeConfig._configured = !!(config.llm?.apiKey)
   safeConfig._mindcraft_connected = connectedToMindCraft
   res.json(safeConfig)
@@ -179,7 +182,14 @@ app.post('/api/config', (req, res) => {
         Object.assign(config.llm, rest)
       }
     }
-    if (newConfig.tts) Object.assign(config.tts, newConfig.tts)
+    if (newConfig.tts) {
+      if (newConfig.tts.apiKey && !newConfig.tts.apiKey.includes('...')) {
+        Object.assign(config.tts, newConfig.tts)
+      } else {
+        const { apiKey, ...rest } = newConfig.tts
+        Object.assign(config.tts, rest)
+      }
+    }
     if (newConfig.bot) Object.assign(config.bot, newConfig.bot)
 
     saveConfig(config)
