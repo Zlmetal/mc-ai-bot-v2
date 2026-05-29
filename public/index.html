@@ -355,27 +355,72 @@
       if (text) { sendMessage(text); $('textInput').value = ''; $('textInput').style.height = 'auto'; $('btnSend').disabled = true }
     })
 
-    // ========== 语音模式 ==========
-    let recognition = null
+    // ========== 语音模式（服务端 Whisper STT）==========
+    let mediaRecorder = null
+    let audioChunks = []
     let isRecording = false
 
-    function initSpeechRecognition() {
-      const SR = window.SpeechRecognition || window.webkitSpeechRecognition
-      if (!SR) { $('modeVoice').style.display = 'none'; return }
-      recognition = new SR()
-      recognition.lang = 'zh-CN'
-      recognition.continuous = false
-      recognition.interimResults = true
-      recognition.onstart = () => { isRecording = true; $('btnVoice').classList.add('recording'); $('voiceHint').textContent = '正在听...'; $('voiceHint').classList.add('recording') }
-      recognition.onresult = (event) => {
-        const result = event.results[event.results.length - 1]
-        if (result.isFinal) { stopRecording(); if (result[0].transcript.trim()) sendMessage(result[0].transcript) }
+    async function initVoice() {
+      try {
+        const stream = await navigator.mediaDevices.getUserMedia({ audio: true })
+        mediaRecorder = new MediaRecorder(stream, { mimeType: 'audio/webm;codecs=opus' })
+        
+        mediaRecorder.ondataavailable = (e) => {
+          if (e.data.size > 0) audioChunks.push(e.data)
+        }
+        
+        mediaRecorder.onstop = async () => {
+          $('voiceHint').textContent = '识别中...'
+          const audioBlob = new Blob(audioChunks, { type: 'audio/webm' })
+          audioChunks = []
+          
+          if (audioBlob.size < 1000) {
+            $('voiceHint').textContent = '按住说话'
+            return
+          }
+          
+          try {
+            const resp = await fetch('/api/stt', {
+              method: 'POST',
+              headers: { 'Content-Type': 'audio/webm' },
+              body: audioBlob
+            })
+            const result = await resp.json()
+            if (result.success && result.text) {
+              sendMessage(result.text)
+            } else {
+              addMessage('system', '语音识别失败: ' + (result.message || '未识别到内容'))
+            }
+          } catch (e) {
+            addMessage('system', '语音识别出错')
+          }
+          $('voiceHint').textContent = '按住说话'
+        }
+        
+        console.log('[Voice] ✅ 麦克风已就绪')
+      } catch (e) {
+        console.error('[Voice] 麦克风获取失败:', e)
+        $('modeVoice').style.display = 'none'
       }
-      recognition.onerror = () => stopRecording()
-      recognition.onend = () => stopRecording()
     }
-    function startRecording() { if (!recognition || isRecording) return; try { recognition.start() } catch (e) {} }
-    function stopRecording() { if (!recognition || !isRecording) return; isRecording = false; $('btnVoice').classList.remove('recording'); $('voiceHint').textContent = '按住说话'; $('voiceHint').classList.remove('recording'); try { recognition.stop() } catch (e) {} }
+
+    function startRecording() {
+      if (!mediaRecorder || isRecording) return
+      isRecording = true
+      audioChunks = []
+      mediaRecorder.start(100)
+      $('btnVoice').classList.add('recording')
+      $('voiceHint').textContent = '正在录音...'
+      $('voiceHint').classList.add('recording')
+    }
+
+    function stopRecording() {
+      if (!mediaRecorder || !isRecording) return
+      isRecording = false
+      mediaRecorder.stop()
+      $('btnVoice').classList.remove('recording')
+      $('voiceHint').classList.remove('recording')
+    }
 
     $('btnVoice').addEventListener('mousedown', () => { if (isPlayingAudio) { audioQueue = []; isPlayingAudio = false } startRecording() })
     $('btnVoice').addEventListener('mouseup', stopRecording)
@@ -384,7 +429,7 @@
     $('btnVoice').addEventListener('touchend', (e) => { e.preventDefault(); stopRecording() })
 
     // ========== 启动 ==========
-    initSpeechRecognition()
+    initVoice()
     connect()
   </script>
 </body>
