@@ -202,12 +202,18 @@ app.post('/api/config', (req, res) => {
         const keysPath = path.join(__dirname, '..', 'mindcraft', 'keys.json')
         fs.writeFileSync(keysPath, JSON.stringify({ OPENAI_API_KEY: apiKey }, null, 2))
         console.log('[配置] keys.json 已同步')
+        
+        // 重启 MindCraft Agent 以应用新的 API Key
+        if (connectedToMindCraft && mindcraftSocket) {
+          mindcraftSocket.emit('restart-agent', 'andrew')
+          console.log('[配置] 已请求重启 MindCraft Agent')
+        }
       }
     } catch (e) {
       console.error('[配置] keys.json 同步失败:', e.message)
     }
     
-    res.json({ success: true, message: '配置已保存' })
+    res.json({ success: true, message: '配置已保存，AI 玩家将自动重启' })
   } catch (err) {
     res.status(500).json({ success: false, message: err.message })
   }
