@@ -4,6 +4,7 @@ FROM node:20-slim
 RUN apt-get update && apt-get install -y \
     python3 \
     python3-distutils \
+    python3-pip \
     make \
     g++ \
     git \
@@ -15,6 +16,9 @@ RUN apt-get update && apt-get install -y \
     libxxf86vm1 \
     && ln -sf /usr/bin/python3 /usr/bin/python \
     && rm -rf /var/lib/apt/lists/*
+
+# 安装 edge-tts
+RUN pip3 install edge-tts --break-system-packages || pip3 install edge-tts
 
 WORKDIR /app
 
