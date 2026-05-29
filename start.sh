@@ -50,10 +50,8 @@ EOF
 
 echo "[启动] MindCraft settings.js 已生成"
 
-# 创建 profiles 目录并复制 AI 玩家配置
-mkdir -p /app/mindcraft/profiles
-cp /app/andrew.json /app/mindcraft/profiles/andrew.json
-echo "[启动] AI 玩家配置已复制"
+# AI 玩家配置已在 Dockerfile 中复制到 /app/mindcraft/profiles/andrew.json
+echo "[启动] AI 玩家配置已就绪"
 
 # 生成 keys.json（如果环境变量有 API Key）
 if [ -n "$LLM_API_KEY" ]; then
