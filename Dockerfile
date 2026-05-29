@@ -17,8 +17,8 @@ RUN apt-get update && apt-get install -y \
     && ln -sf /usr/bin/python3 /usr/bin/python \
     && rm -rf /var/lib/apt/lists/*
 
-# 安装 edge-tts
-RUN pip3 install edge-tts --break-system-packages || pip3 install edge-tts
+# 安装 edge-tts 和 faster-whisper (STT)
+RUN pip3 install edge-tts faster-whisper --break-system-packages || pip3 install edge-tts faster-whisper
 
 WORKDIR /app
 
