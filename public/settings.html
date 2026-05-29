@@ -143,6 +143,18 @@
         </div>
       </div>
       <div class="field">
+        <label>TTS API 地址（留空则使用 LLM API 地址）</label>
+        <input type="text" id="ttsBaseUrl" placeholder="https://token-plan-cn.xiaomimimo.com/v1">
+      </div>
+      <div class="field">
+        <label>TTS API Key（留空则使用 LLM API Key）</label>
+        <input type="password" id="ttsApiKey" placeholder="留空则使用上方的 API Key">
+      </div>
+      <div class="field">
+        <label>TTS 模型</label>
+        <input type="text" id="ttsModel" value="mimo-v2.5-tts-voicedesign">
+      </div>
+      <div class="field">
         <label>音色描述</label>
         <input type="text" id="ttsVoice" placeholder="温柔的年轻男性，声音清晰">
       </div>
@@ -263,6 +275,9 @@
         $('llmApiKey').value = config.llm?.apiKey || ''
         $('llmModel').value = config.llm?.model || 'mimo-v2.5'
         $('ttsEnabled').checked = config.tts?.enabled !== false
+        $('ttsBaseUrl').value = config.tts?.baseUrl || ''
+        $('ttsApiKey').value = config.tts?.apiKey || ''
+        $('ttsModel').value = config.tts?.model || 'mimo-v2.5-tts-voicedesign'
         $('ttsVoice').value = config.tts?.voice || ''
         $('botName').value = config.bot?.name || '小智'
         $('botPersonality').value = config.bot?.personality || ''
@@ -289,7 +304,7 @@
         mindcraft: { host: $('mindcraftHost').value, port: parseInt($('mindcraftPort').value) || 8080 },
         mc: { host: $('mcHost').value, port: parseInt($('mcPort').value) || 25565, version: $('mcVersion').value || 'auto' },
         llm: { provider: $('llmProvider').value, baseUrl: $('llmBaseUrl').value, model: $('llmModel').value },
-        tts: { enabled: $('ttsEnabled').checked, voice: $('ttsVoice').value, model: 'mimo-v2.5-tts-voicedesign' },
+        tts: { enabled: $('ttsEnabled').checked, baseUrl: $('ttsBaseUrl').value, apiKey: $('ttsApiKey').value, model: $('ttsModel').value, voice: $('ttsVoice').value },
         bot: { name: $('botName').value || '小智', personality: $('botPersonality').value, style: $('botStyle').value }
       }
       if (apiKey && !apiKey.includes('...')) config.llm.apiKey = apiKey
