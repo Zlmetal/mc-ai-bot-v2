@@ -6,13 +6,15 @@ echo "[启动] MC AI Bot V2 启动中..."
 MC_HOST=${MC_HOST:-host.docker.internal}
 MC_PORT=${MC_PORT:-25565}
 MC_AUTH=${MC_AUTH:-offline}
+MC_VERSION=${MC_VERSION:-1.21.11}
 
 echo "[启动] MC 服务器: $MC_HOST:$MC_PORT"
+echo "[启动] 协议版本: $MC_VERSION (兼容 1.21.10)"
 
 # 生成 MindCraft 的 settings.js
 cat > /app/mindcraft/settings.js << EOF
 const settings = {
-    "minecraft_version": "auto",
+    "minecraft_version": "$MC_VERSION",
     "host": "$MC_HOST",
     "port": $MC_PORT,
     "auth": "$MC_AUTH",
@@ -40,7 +42,7 @@ const settings = {
     "show_command_syntax": "full",
     "narrate_behavior": true,
     "chat_bot_messages": true,
-    "spawn_timeout": 30,
+    "spawn_timeout": 60,
     "block_place_delay": 0,
     "log_all_prompts": false
 }
@@ -50,10 +52,7 @@ EOF
 
 echo "[启动] MindCraft settings.js 已生成"
 
-# AI 玩家配置已在 Dockerfile 中复制到 /app/mindcraft/profiles/andrew.json
-echo "[启动] AI 玩家配置已就绪"
-
-# 生成 keys.json（如果环境变量有 API Key）
+# 生成 keys.json（空文件，避免报错）
 if [ -n "$LLM_API_KEY" ]; then
   cat > /app/mindcraft/keys.json << EOF
 {
@@ -61,18 +60,30 @@ if [ -n "$LLM_API_KEY" ]; then
 }
 EOF
   echo "[启动] keys.json 已生成"
+else
+  echo '{}' > /app/mindcraft/keys.json
+  echo "[启动] 空 keys.json 已生成"
 fi
 
-# 等待一下再启动
-sleep 2
-
-# 启动 MindCraft（后台运行）
+# 启动 MindCraft（带自动重启）
 cd /app/mindcraft
-echo "[启动] 启动 MindCraft..."
-node main.js &
+
+start_mindcraft() {
+  echo "[MindCraft] 启动中..."
+  node main.js
+  echo "[MindCraft] 进程退出，5秒后重启..."
+  sleep 5
+}
+
+# 循环启动 MindCraft，崩溃自动重启
+(
+  while true; do
+    start_mindcraft
+  done
+) &
 MINDCRAFT_PID=$!
 
-# 等待 MindCraft MindServer 启动
+# 等待 MindServer 启动
 echo "[启动] 等待 MindCraft 启动..."
 for i in $(seq 1 30); do
   if curl -s http://localhost:8080 > /dev/null 2>&1; then
@@ -92,5 +103,5 @@ echo "[启动] ✅ 所有服务已启动"
 echo "[启动] Web: http://localhost:3000"
 echo "[启动] MindCraft: http://localhost:8080"
 
-# 等待任意进程退出
-wait -n $MINDCRAFT_PID $WEB_PID
+# 等待
+wait
