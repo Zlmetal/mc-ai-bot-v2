@@ -195,6 +195,18 @@ app.post('/api/config', (req, res) => {
     saveConfig(config)
     tts.updateConfig(config)
     
+    // 同步 API Key 到 MindCraft 的 keys.json
+    try {
+      const apiKey = config.llm?.apiKey
+      if (apiKey) {
+        const keysPath = path.join(__dirname, '..', 'mindcraft', 'keys.json')
+        fs.writeFileSync(keysPath, JSON.stringify({ OPENAI_API_KEY: apiKey }, null, 2))
+        console.log('[配置] keys.json 已同步')
+      }
+    } catch (e) {
+      console.error('[配置] keys.json 同步失败:', e.message)
+    }
+    
     res.json({ success: true, message: '配置已保存' })
   } catch (err) {
     res.status(500).json({ success: false, message: err.message })
