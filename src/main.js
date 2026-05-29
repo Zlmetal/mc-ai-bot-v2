@@ -284,6 +284,49 @@ app.post('/api/test-llm', async (req, res) => {
   }
 })
 
+// API: 测试 TTS 语音合成
+app.post('/api/test-tts', async (req, res) => {
+  try {
+    const testConfig = req.body
+    const ttsBaseUrl = testConfig.tts?.baseUrl || config.tts?.baseUrl || config.llm?.baseUrl
+    const ttsApiKey = (testConfig.tts?.apiKey && !testConfig.tts.apiKey.includes('...')) ? testConfig.tts.apiKey : ((config.tts?.apiKey) || config.llm?.apiKey)
+    const ttsModel = testConfig.tts?.model || config.tts?.model || 'mimo-v2.5-tts-voicedesign'
+    const ttsVoice = testConfig.tts?.voice || config.tts?.voice || '温柔的年轻男性'
+
+    if (!ttsBaseUrl || !ttsApiKey) {
+      return res.json({ success: false, message: '请先填写 TTS API 地址和 Key' })
+    }
+
+    const response = await fetch(`${ttsBaseUrl}/audio/speech`, {
+      method: 'POST',
+      headers: {
+        'Authorization': `Bearer ${ttsApiKey}`,
+        'Content-Type': 'application/json'
+      },
+      body: JSON.stringify({
+        model: ttsModel,
+        input: '你好，这是语音合成测试。',
+        voice: ttsVoice,
+        response_format: 'mp3'
+      })
+    })
+
+    if (!response.ok) {
+      const err = await response.text()
+      return res.json({ success: false, message: `TTS 错误 (${response.status}): ${err}` })
+    }
+
+    const buffer = Buffer.from(await response.arrayBuffer())
+    const filename = `tts_test_${Date.now()}.mp3`
+    const filePath = path.join(__dirname, '..', 'data', 'voices', filename)
+    fs.writeFileSync(filePath, buffer)
+
+    res.json({ success: true, audioUrl: `/voices/${filename}` })
+  } catch (err) {
+    res.json({ success: false, message: err.message })
+  }
+})
+
 // API: 获取记忆统计
 app.get('/api/memory', (req, res) => {
   res.json({
