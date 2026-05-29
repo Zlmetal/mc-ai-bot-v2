@@ -26,6 +26,9 @@ WORKDIR /app/mindcraft
 RUN npm install --ignore-scripts || true
 RUN npm rebuild || true
 
+# 打补丁：MindServer 绑定地址 localhost → 0.0.0.0（修复 Docker 内 IPv4/IPv6 问题）
+RUN sed -i "s/const host = 'localhost'/const host = '0.0.0.0'/g" src/mindcraft/mindserver.js || true
+
 # 复制 AI 玩家配置
 RUN mkdir -p /app/mindcraft/profiles
 COPY andrew.json /app/mindcraft/profiles/andrew.json
