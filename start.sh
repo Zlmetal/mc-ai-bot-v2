@@ -55,6 +55,10 @@ echo "[启动] MindCraft settings.js 已生成"
 # 首次同步 API Key
 cd /app && node src/sync-keys.js
 
+# 显示 keys.json 内容（调试用）
+echo "[启动] keys.json 内容:"
+cat /app/mindcraft/keys.json
+
 # 后台循环：每 30 秒同步一次 API Key
 (
   while true; do
