@@ -12,6 +12,7 @@ import { fileURLToPath } from 'url'
 import fs from 'fs'
 import MemorySystem from './memory.js'
 import TTSService from './tts.js'
+import STTService from './stt.js'
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url))
 
@@ -93,6 +94,7 @@ if (fs.existsSync(mindcraftSettingsPath)) {
 
 const memory = new MemorySystem()
 const tts = new TTSService(config)
+const stt = new STTService()
 
 // ========== MindCraft Socket.IO 连接 ==========
 
@@ -317,6 +319,23 @@ app.post('/api/test-tts', async (req, res) => {
     } else {
       res.json({ success: false, message: '语音合成失败，请检查 edge-tts 是否安装' })
     }
+  } catch (err) {
+    res.json({ success: false, message: err.message })
+  }
+})
+
+// API: 语音转文字 (STT)
+app.post('/api/stt', express.raw({ type: 'audio/*', limit: '10mb' }), async (req, res) => {
+  try {
+    if (!stt.ready) {
+      return res.json({ success: false, message: 'STT 未就绪，请稍候' })
+    }
+    const audioBuffer = req.body
+    if (!audioBuffer || audioBuffer.length === 0) {
+      return res.json({ success: false, message: '未收到音频数据' })
+    }
+    const text = await stt.transcribe(audioBuffer)
+    res.json({ success: true, text: text || '' })
   } catch (err) {
     res.json({ success: false, message: err.message })
   }
