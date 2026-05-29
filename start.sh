@@ -77,10 +77,10 @@ EOF
 
 sync_keys
 
-# 后台循环：每 10 秒检查 config.json 是否更新了 API Key，同步到 keys.json
+# 后台循环：每 60 秒检查 config.json 是否更新了 API Key，同步到 keys.json
 (
   while true; do
-    sleep 10
+    sleep 60
     sync_keys
   done
 ) &
