@@ -11,9 +11,10 @@ const __dirname = path.dirname(fileURLToPath(import.meta.url))
 export default class TTSService {
   constructor(config) {
     this.config = config
-    this.baseUrl = config.llm?.baseUrl || ''
-    this.apiKey = config.llm?.apiKey || ''
-    this.model = config.tts?.model || 'MiMo-V2.5-TTS-VoiceDesign'
+    // TTS 专用 API 地址和 Key，没有则回退到 LLM 的
+    this.baseUrl = config.tts?.baseUrl || config.llm?.baseUrl || ''
+    this.apiKey = config.tts?.apiKey || config.llm?.apiKey || ''
+    this.model = config.tts?.model || 'mimo-v2.5-tts-voicedesign'
     this.voice = config.tts?.voice || '温柔的年轻男性'
     this.enabled = config.tts?.enabled !== false
 
@@ -27,9 +28,9 @@ export default class TTSService {
 
   updateConfig(config) {
     this.config = config
-    this.baseUrl = config.llm?.baseUrl || ''
-    this.apiKey = config.llm?.apiKey || ''
-    this.model = config.tts?.model || 'MiMo-V2.5-TTS-VoiceDesign'
+    this.baseUrl = config.tts?.baseUrl || config.llm?.baseUrl || ''
+    this.apiKey = config.tts?.apiKey || config.llm?.apiKey || ''
+    this.model = config.tts?.model || 'mimo-v2.5-tts-voicedesign'
     this.voice = config.tts?.voice || '温柔的年轻男性'
     this.enabled = config.tts?.enabled !== false
   }
