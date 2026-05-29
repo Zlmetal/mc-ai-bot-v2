@@ -7,6 +7,7 @@ RUN apt-get update && apt-get install -y \
     make \
     g++ \
     git \
+    curl \
     libgl1-mesa-glx \
     libglu1-mesa \
     libxi6 \
@@ -25,6 +26,9 @@ WORKDIR /app/mindcraft
 RUN npm install --ignore-scripts || true
 RUN npm rebuild || true
 
+# 复制 AI 玩家配置
+COPY andrew.json /app/mindcraft/andrew.json
+
 # 复制 Web 服务
 WORKDIR /app
 COPY src/ ./src/
@@ -32,12 +36,12 @@ COPY public/ ./public/
 COPY package.json ./
 RUN npm install
 
-# 创建数据目录
-RUN mkdir -p data/voices
-
-# 启动脚本
+# 复制启动脚本
 COPY start.sh ./
 RUN chmod +x start.sh
+
+# 创建数据目录
+RUN mkdir -p data/voices
 
 EXPOSE 3000 8080
 
