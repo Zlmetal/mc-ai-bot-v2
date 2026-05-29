@@ -27,7 +27,8 @@ RUN npm install --ignore-scripts || true
 RUN npm rebuild || true
 
 # 复制 AI 玩家配置
-COPY andrew.json /app/mindcraft/andrew.json
+RUN mkdir -p /app/mindcraft/profiles
+COPY andrew.json /app/mindcraft/profiles/andrew.json
 
 # 复制 Web 服务
 WORKDIR /app
