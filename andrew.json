@@ -1,0 +1,8 @@
+{
+    "name": "andrew",
+    "model": {
+        "api": "openai",
+        "model": "mimo-v2.5",
+        "url": "https://token-plan-cn.xiaomimimo.com/v1/"
+    }
+}
