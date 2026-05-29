@@ -20,7 +20,7 @@ const settings = {
     "auto_open_ui": false,
     "base_profile": "assistant",
     "profiles": [
-        "./profiles/andy.json"
+        "./profiles/andrew.json"
     ],
     "load_memory": false,
     "init_message": "大家好！我是AI玩家",
@@ -49,6 +49,11 @@ export default settings
 EOF
 
 echo "[启动] MindCraft settings.js 已生成"
+
+# 创建 profiles 目录并复制 AI 玩家配置
+mkdir -p /app/mindcraft/profiles
+cp /app/andrew.json /app/mindcraft/profiles/andrew.json
+echo "[启动] AI 玩家配置已复制"
 
 # 生成 keys.json（如果环境变量有 API Key）
 if [ -n "$LLM_API_KEY" ]; then
