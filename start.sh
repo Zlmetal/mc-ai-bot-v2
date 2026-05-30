@@ -29,7 +29,7 @@ const settings = {
     "only_chat_with": [],
     "speak": false,
     "chat_ingame": true,
-    "language": "zh",
+    "language": "zh-CN",
     "render_bot_view": false,
     "allow_insecure_coding": false,
     "allow_vision": false,
