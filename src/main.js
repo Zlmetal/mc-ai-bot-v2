@@ -56,7 +56,6 @@ function syncMindCraftConfig() {
   const mcDir = path.join(__dirname, '..', 'mindcraft')
   if (!fs.existsSync(mcDir)) return
 
-  // 生成 andrew.json（用设置页面的名字和人设）
   const botName = config.bot?.name || 'andrew'
   const botStyle = config.bot?.style || '说话简洁但有温度，偶尔开玩笑，用中文'
   
@@ -69,6 +68,7 @@ function syncMindCraftConfig() {
     saveConfig(config)
   }
   
+  // 生成 bot profile 文件
   const profile = {
     name: botName,
     model: {
@@ -77,26 +77,17 @@ function syncMindCraftConfig() {
       url: (config.llm?.baseUrl || 'https://api.xiaomimimo.com/v1').replace(/\/+$/, '')
     }
   }
-  fs.writeFileSync(path.join(mcDir, 'profiles', `${botName}.json`), JSON.stringify(profile, null, 2))
-
-  // 更新 settings.js 里的 profiles
-  const settingsPath = path.join(mcDir, 'settings.js')
-  if (fs.existsSync(settingsPath)) {
-    let content = fs.readFileSync(settingsPath, 'utf-8')
-    content = content.replace(/"profiles":\s*\[[^\]]*\]/, `"profiles": ["./profiles/${botName}.json"]`)
-    // 更新人设 prompt
-    content = content.replace(/"init_message":\s*"[^"]*"/, `"init_message": "大家好！我是${botName}。我的性格是${config.bot?.personality || ''}。${botStyle}"`)
-    fs.writeFileSync(settingsPath, content)
-  }
+  const profilesDir = path.join(mcDir, 'profiles')
+  if (!fs.existsSync(profilesDir)) fs.mkdirSync(profilesDir, { recursive: true })
+  fs.writeFileSync(path.join(profilesDir, `${botName}.json`), JSON.stringify(profile, null, 2))
 
   // 同步 API Key
   const apiKey = config.llm?.apiKey
   if (apiKey && !apiKey.includes('...')) {
     fs.writeFileSync(path.join(mcDir, 'keys.json'), JSON.stringify({ OPENAI_API_KEY: apiKey }, null, 2))
-    console.log('[配置] keys.json 已同步')
   }
 
-  console.log(`[配置] Bot 名字: ${botName}`)
+  console.log(`[配置] Bot: ${botName}, Model: ${llmModel}`)
 }
 
 syncMindCraftConfig()
@@ -278,14 +269,13 @@ app.post('/api/config', (req, res) => {
 
     if (nameChanged) {
       // 名字变了需要重启整个 MindCraft 进程
-      console.log(`[配置] Bot 名字从 ${oldBotName} 改为 ${newBotName}，需要重启 MindCraft`)
-      // 写入重启标记，start.sh 会检测到并重启
+      console.log(`[配置] Bot 名字从 ${oldBotName} 改为 ${newBotName}，写入重启标记`)
+      // 写入重启标记，start.sh 会检测到并重启 MindCraft
       try {
         fs.writeFileSync(path.join(__dirname, '..', 'data', '.restart'), '1')
-        // 发送 SIGUSR1 给 MindCraft 进程让它退出
-        process.kill(process.pid, 'SIGUSR1')
+        console.log('[配置] 重启标记已写入，MindCraft 将在几秒内重启')
       } catch (e) {
-        console.log('[配置] 重启标记写入失败，手动重启容器生效')
+        console.log('[配置] 重启标记写入失败:', e.message)
       }
     } else if (connectedToMindCraft && mindcraftSocket) {
       // 名字没变，只重启 agent
