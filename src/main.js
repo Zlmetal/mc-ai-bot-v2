@@ -272,8 +272,9 @@ app.post('/api/config', (req, res) => {
 
     // 重启 MindCraft Agent
     if (connectedToMindCraft && mindcraftSocket) {
-      // 获取当前 agent 名字（可能是旧名字）
-      const currentAgentName = Object.keys(agentStates)[0] || config.bot?.name || 'andrew'
+      // 使用实际在线的 agent 名字
+      const agents = Object.keys(agentStates)
+      const currentAgentName = agents[0] || config.bot?.name || 'andrew'
       mindcraftSocket.emit('restart-agent', currentAgentName)
       console.log('[配置] 已请求重启 MindCraft Agent:', currentAgentName)
     }
@@ -332,10 +333,17 @@ app.post('/api/test-llm', async (req, res) => {
 
 app.post('/api/test-tts', async (req, res) => {
   try {
-    const voice = req.body.tts?.voice || config.tts?.voice || '云希（男）'
-    tts.updateConfig({ ...config, tts: { ...config.tts, voice } })
+    const testTts = req.body.tts || {}
+    const ttsConfig = {
+      ...config.tts,
+      ...testTts,
+      // 保留未被遮蔽的 API Key
+      mimoApiKey: (testTts.mimoApiKey && !testTts.mimoApiKey.includes('...'))
+        ? testTts.mimoApiKey : (config.tts?.mimoApiKey || config.llm?.apiKey)
+    }
+    tts.updateConfig({ ...config, tts: ttsConfig })
     const audioUrl = await tts.synthesize('你好，这是语音合成测试。')
-    res.json(audioUrl ? { success: true, audioUrl } : { success: false, message: '合成失败' })
+    res.json(audioUrl ? { success: true, audioUrl } : { success: false, message: '合成失败，请检查配置' })
   } catch (err) { res.json({ success: false, message: err.message }) }
 })
 
@@ -374,10 +382,12 @@ wss.on('connection', (ws) => {
     try {
       const msg = JSON.parse(data.toString())
       if (msg.type === 'chat' && msg.text) {
-        // 转发给 MindCraft
-        const botName = config.bot?.name || 'andrew'
+        // 转发给 MindCraft - 使用实际在线的 agent 名字
+        const agents = Object.keys(agentStates)
+        const botName = agents[0] || config.bot?.name || 'andrew'
         if (connectedToMindCraft && mindcraftSocket) {
           memory.addToHistory('web-user', 'user', msg.text)
+          console.log(`[Web] 发送消息给 ${botName}: ${msg.text}`)
           mindcraftSocket.emit('send-message', botName, {
             message: msg.text,
             from: 'WEB'
