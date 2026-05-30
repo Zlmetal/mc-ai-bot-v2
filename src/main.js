@@ -26,7 +26,8 @@ const DEFAULT_CONFIG = {
   mc: { host: '', port: 25565, version: '1.21.11' },
   llm: { provider: 'mimo', model: 'mimo-v2.5', apiKey: '', baseUrl: 'https://api.xiaomimimo.com/v1' },
   tts: { enabled: true, voice: '云希（男）' },
-  bot: { name: 'andrew', personality: '勤劳、好奇、有点话多、喜欢探索', style: '说话简洁但有温度，偶尔开玩笑，用中文' }
+  bot: { name: 'andrew', personality: '勤劳、好奇、有点话多、喜欢探索', style: '说话简洁但有温度，偶尔开玩笑，用中文' },
+  wake: { enabled: false, word: '' }
 }
 
 function loadConfig() {
@@ -256,6 +257,7 @@ app.post('/api/config', (req, res) => {
       if (newConfig.web.username) config.web.username = newConfig.web.username
       if (newConfig.web.password) config.web.password = newConfig.web.password
     }
+    if (newConfig.wake) Object.assign(config.wake, newConfig.wake)
 
     saveConfig(config)
     tts.updateConfig(config)
