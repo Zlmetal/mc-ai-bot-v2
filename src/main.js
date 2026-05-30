@@ -69,13 +69,6 @@ function syncMindCraftConfig() {
     saveConfig(config)
   }
   
-  // 校验 Bot 名字（不能是模型名）
-  if (botName === 'mimo' || botName === 'MiMo' || botName.includes('model')) {
-    console.warn(`[配置] Bot 名字异常: ${botName}，回退到 andrew`)
-    config.bot.name = 'andrew'
-    saveConfig(config)
-  }
-  
   const profile = {
     name: botName,
     model: {
