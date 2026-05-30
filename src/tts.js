@@ -62,8 +62,36 @@ export default class TTSService {
     this.edgeVoice = VOICES[this.voice] || 'zh-CN-YunxiNeural'
   }
 
+  // 清理 Markdown 和特殊符号，防止 TTS 读出
+  _cleanText(text) {
+    if (!text) return ''
+    let t = text
+    // 标题符号
+    t = t.replace(/^#{1,6}\s+/gm, '')
+    // 加粗/斜体
+    t = t.replace(/\*\*(.+?)\*\*/g, '$1')
+    t = t.replace(/\*(.+?)\*/g, '$1')
+    // 列表符号
+    t = t.replace(/^[\s]*[-*+]\s+/gm, '')
+    // 行内代码
+    t = t.replace(/`([^`]+)`/g, '$1')
+    // 链接
+    t = t.replace(/\[([^\]]+)\]\([^)]+\)/g, '$1')
+    // 图片
+    t = t.replace(/!\[([^\]]*)\]\([^)]+\)/g, '')
+    // 特殊符号
+    t = t.replace(/[#*_~`>]/g, '')
+    // 多余空行
+    t = t.replace(/\n{3,}/g, '\n\n')
+    return t.trim()
+  }
+
   async synthesize(text) {
     if (!this.enabled || !text || text.trim().length === 0) return null
+
+    // 清理文本
+    text = this._cleanText(text)
+    if (!text) return null
 
     const filename = `voice_${Date.now()}_${Math.random().toString(36).slice(2, 6)}.mp3`
     const filePath = path.join(this.audioDir, filename)
