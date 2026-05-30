@@ -22,7 +22,7 @@ const CONFIG_PATH = path.join(__dirname, '..', 'data', 'config.json')
 
 const DEFAULT_CONFIG = {
   mindcraft: { host: 'localhost', port: 8080 },
-  web: { port: 3000 },
+  web: { port: 3000, username: 'admin', password: 'password' },
   mc: { host: '', port: 25565, version: '1.21.11' },
   llm: { provider: 'mimo', model: 'mimo-v2.5', apiKey: '', baseUrl: 'https://api.xiaomimimo.com/v1' },
   tts: { enabled: true, voice: '云希（男）' },
@@ -154,6 +154,77 @@ const wss = new WebSocketServer({ server })
 
 // 中间件
 app.use(express.json({ limit: '10mb' }))
+
+// ========== 认证系统 ==========
+const SESSIONS = new Map()  // token -> { username, expire }
+const SESSION_TTL = 7 * 24 * 60 * 60 * 1000  // 7天
+
+function generateToken() {
+  return Math.random().toString(36).substring(2) + Math.random().toString(36).substring(2)
+}
+
+function parseCookies(req) {
+  const cookies = {}
+  const cookieHeader = req.headers.cookie
+  if (!cookieHeader) return cookies
+  cookieHeader.split(';').forEach(c => {
+    const [name, ...rest] = c.trim().split('=')
+    cookies[name] = rest.join('=')
+  })
+  return cookies
+}
+
+// 认证中间件
+function authMiddleware(req, res, next) {
+  // 放行：登录页面、登录 API、音频文件
+  const publicPaths = ['/login.html', '/api/login', '/voices/']
+  const isPublic = publicPaths.some(p => req.path.startsWith(p))
+  if (isPublic) return next()
+
+  // 检查 cookie
+  const cookies = parseCookies(req)
+  const token = cookies['mcbot_session']
+  if (token && SESSIONS.has(token)) {
+    const session = SESSIONS.get(token)
+    if (session.expire > Date.now()) return next()
+    SESSIONS.delete(token)
+  }
+
+  // 未认证，API 返回 401，页面重定向到登录
+  if (req.path.startsWith('/api/')) {
+    return res.status(401).json({ success: false, message: '请先登录' })
+  }
+  return res.redirect('/login.html')
+}
+
+app.use(authMiddleware)
+
+// 登录 API
+app.post('/api/login', (req, res) => {
+  const { username, password } = req.body
+  const cfgUser = config.web?.username || 'admin'
+  const cfgPass = config.web?.password || 'password'
+
+  if (username === cfgUser && password === cfgPass) {
+    const token = generateToken()
+    SESSIONS.set(token, { username, expire: Date.now() + SESSION_TTL })
+    res.setHeader('Set-Cookie', `mcbot_session=${token}; Path=/; HttpOnly; SameSite=Lax; Max-Age=${SESSION_TTL / 1000}`)
+    res.json({ success: true })
+  } else {
+    res.json({ success: false, message: '用户名或密码错误' })
+  }
+})
+
+// 登出 API
+app.post('/api/logout', (req, res) => {
+  const cookies = parseCookies(req)
+  const token = cookies['mcbot_session']
+  if (token) SESSIONS.delete(token)
+  res.setHeader('Set-Cookie', 'mcbot_session=; Path=/; Max-Age=0')
+  res.json({ success: true })
+})
+
+// 静态文件（认证之后）
 app.use(express.static(path.join(__dirname, '..', 'public')))
 app.use('/voices', express.static(path.join(__dirname, '..', 'data', 'voices')))
 
@@ -190,6 +261,10 @@ app.post('/api/config', (req, res) => {
     }
     if (newConfig.tts) Object.assign(config.tts, newConfig.tts)
     if (newConfig.bot) Object.assign(config.bot, newConfig.bot)
+    if (newConfig.web) {
+      if (newConfig.web.username) config.web.username = newConfig.web.username
+      if (newConfig.web.password) config.web.password = newConfig.web.password
+    }
 
     saveConfig(config)
     tts.updateConfig(config)
