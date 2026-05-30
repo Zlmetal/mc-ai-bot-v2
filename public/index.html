@@ -138,7 +138,7 @@
         <button class="voice-btn" id="btnPhone" title="实时通话">📞</button>
       </div>
       <div class="voice-hint" id="voiceHint">按住说话 · 📞实时通话</div>
-      <div class="wake-status" id="wakeStatus">🟢 监听中，说「小智」唤醒</div>
+      <div class="wake-status" id="wakeStatus">🟢 监听中</div>
     </div>
   </div>
 
@@ -147,12 +147,30 @@
     const chatArea = $('chatArea')
     const typingIndicator = $('typingIndicator')
 
-    // ========== 获取 Bot 名字（唤醒词） ==========
+    // ========== 获取配置（唤醒词） ==========
     let wakeWord = '小智'
+    let wakeEnabled = false
     fetch('/api/config').then(r => r.json()).then(c => {
-      if (c.bot?.name) wakeWord = c.bot.name
-      $('wakeStatus').textContent = `🟢 监听中，说「${wakeWord}」唤醒`
+      if (c.wake?.enabled) {
+        wakeEnabled = true
+        wakeWord = c.wake.word || c.bot?.name || '小智'
+      } else {
+        wakeEnabled = false
+        wakeWord = c.bot?.name || '小智'
+      }
+      updateWakeStatus()
     }).catch(() => {})
+
+    function updateWakeStatus() {
+      const el = $('wakeStatus')
+      if (wakeEnabled) {
+        el.textContent = wakeEnabled ? `🟢 监听中，说「${wakeWord}」唤醒` : '🟢 监听中，直接说话即可'
+        el.style.display = 'block'
+      } else {
+        el.textContent = '🟢 监听中，直接说话即可'
+        el.style.display = 'block'
+      }
+    }
 
     // ========== 模式切换 ==========
     $('modeText').addEventListener('click', () => {
@@ -355,31 +373,41 @@
             const r = await fetch('/api/stt', { method: 'POST', headers: { 'Content-Type': 'audio/webm' }, body: blob })
             const d = await r.json()
             if (d.success && d.text && isInCall) {
-              // 检查是否包含唤醒词
-              if (d.text.includes(wakeWord)) {
-                // 唤醒词命中，发送剩余内容
-                const cleaned = d.text.replace(new RegExp(wakeWord, 'g'), '').trim()
-                if (cleaned) sendMessage(cleaned)
-                else sendMessage('你好')
-              } else if (callIsListening) {
-                // 已唤醒状态，直接发送
+              if (!wakeEnabled) {
+                // 唤醒词未启用，直接发送所有语音
                 sendMessage(d.text)
-                callIsListening = false  // 说完回到监听状态
+              } else {
+                // 唤醒词启用，需要检测唤醒词
+                if (d.text.includes(wakeWord)) {
+                  const cleaned = d.text.replace(new RegExp(wakeWord, 'g'), '').trim()
+                  if (cleaned) sendMessage(cleaned)
+                  else sendMessage('你好')
+                } else if (callIsListening) {
+                  sendMessage(d.text)
+                  callIsListening = false
+                }
               }
             }
           } catch (e) {}
           if (isInCall) {
-            $('voiceHint').textContent = `🟢 监听中，说「${wakeWord}」唤醒`
+            $('voiceHint').textContent = wakeEnabled ? `🟢 监听中，说「${wakeWord}」唤醒` : '🟢 直接说话即可'
             callMediaRecorder.start(100)
           }
         }
         isInCall = true
         $('btnPhone').classList.add('in-call')
         $('btnPhone').textContent = '📵'
-        $('voiceHint').textContent = `🟢 监听中，说「${wakeWord}」唤醒`
+        
+        if (wakeEnabled) {
+          $('voiceHint').textContent = wakeEnabled ? `🟢 监听中，说「${wakeWord}」唤醒` : '🟢 直接说话即可'
+          $('wakeStatus').textContent = wakeEnabled ? `🟢 监听中，说「${wakeWord}」唤醒` : '🟢 直接说话即可'
+          addMessage('system', `📞 实时通话已开启，说「${wakeWord}」唤醒 AI`)
+        } else {
+          $('voiceHint').textContent = '🟢 直接说话即可'
+          $('wakeStatus').textContent = '🟢 监听中，直接说话即可'
+          addMessage('system', '📞 实时通话已开启，直接说话即可')
+        }
         $('wakeStatus').classList.add('active')
-        $('wakeStatus').textContent = `🟢 监听中，说「${wakeWord}」唤醒`
-        addMessage('system', `📞 实时通话已开启，说「${wakeWord}」唤醒 AI`)
         callMediaRecorder.start(100)
         startVAD()
       } catch (e) { addMessage('system', '麦克风权限获取失败') }
