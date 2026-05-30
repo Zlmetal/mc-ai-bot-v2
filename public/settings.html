@@ -435,6 +435,8 @@
         wake: { enabled: $('wakeEnabled').checked, word: $('wakeWord').value }
       }
       if (apiKey && !apiKey.includes('...')) config.llm.apiKey = apiKey
+      // 过滤掉 undefined 值，避免覆盖已有配置
+      Object.keys(config.tts).forEach(k => { if (config.tts[k] === undefined) delete config.tts[k] })
       if (webPassword) config.web.password = webPassword
       return config
     }
