@@ -1,6 +1,6 @@
-# 🎮 MC AI Bot V2 — Minecraft AI 玩家
+# 🎮 MC AI Bot — 让 AI 像真人一样玩 Minecraft
 
-基于 [MindCraft](https://github.com/mindcraft-bots/mindcraft) 引擎，让 AI 像真人玩家一样在你的 Minecraft 服务器中活动。支持手机端语音/文字聊天、记忆系统、网页配置，Docker 一键部署。
+> 基于 [MindCraft](https://github.com/mindcraft-bots/mindcraft) 引擎，让 AI 像真人玩家一样在你的 Minecraft 服务器中活动。支持手机端语音/文字聊天、记忆系统、网页配置，Docker 一键部署。
 
 [![Docker Image](https://img.shields.io/badge/Docker-ghcr.io%2Fzlmetal%2Fmc--ai--bot--v2-blue)](https://github.com/Zlmetal/mc-ai-bot-v2/pkgs/container/mc-ai-bot-v2)
 [![License](https://img.shields.io/badge/License-MIT-green)](LICENSE)
@@ -10,8 +10,8 @@
 | 功能 | 说明 |
 |------|------|
 | 🎮 自主游戏 | 探索、挖矿、建造、战斗、合成、与其他玩家聊天 |
-| 📱 手机聊天 | 网页随时对话，支持文字和语音 |
-| 📞 实时通话 | 按一下开启，说话自动识别，像打电话一样 |
+| 📱 手机聊天 | 打开网页随时对话，支持文字和语音 |
+| 📞 实时通话 | 按一下开启，说出唤醒词自动识别，像打电话一样 |
 | 🧠 记忆系统 | 记住玩家偏好、事件、地点、人物关系 |
 | 🔊 语音合成 | 支持 Edge-TTS（免费）和 MiMo TTS（自定义 API） |
 | 🔐 登录保护 | 账号密码认证，支持外网安全访问 |
@@ -63,17 +63,17 @@ services:
 > ⚠️ **语音功能需要 HTTPS 环境**（浏览器安全限制，HTTP 下无法访问麦克风）
 >
 > 推荐方案：
-> - [Tailscale](https://tailscale.com/) — 免费，零配置，手机装 app 即可
+> - [Tailscale](https://tailscale.com/) — 免费，零配置
 > - [Lucky](https://github.com/lucky-app/lucky) 反代 — 配合域名使用
 > - Cloudflare Tunnel — 免费，需要域名
 
 | 模式 | 说明 | 环境要求 |
 |------|------|----------|
 | 🎤 按住说话 | 按住录音，松开识别 | HTTPS |
-| 📞 实时通话 | 按一下开启，自动检测说话 | HTTPS |
+| 📞 实时通话 | 按一下开启，唤醒词自动识别 | HTTPS |
 | 💬 文字聊天 | 键盘输入 | 无限制 |
 
-文字聊天在任何环境下都可用，语音功能仅在 HTTPS 下生效。
+**唤醒词机制**：实时通话模式下，AI 只在听到自己的名字（设置页面配置）后才开始识别内容。例如你说"小智，你在干嘛"，AI 会收到"你在干嘛"并回复。
 
 ## 🔊 语音合成
 
@@ -107,12 +107,17 @@ mc-ai-bot-v2/
 │   ├── stt.js           # 语音识别（Whisper）
 │   └── memory.js        # 记忆系统（SQLite）
 ├── public/
-│   ├── index.html       # 聊天界面
+│   ├── index.html       # 聊天界面（手机端适配）
 │   ├── settings.html    # 设置页面
 │   └── login.html       # 登录页面
 ├── Dockerfile
 └── docker-compose.yml
 ```
+
+## 致谢
+
+- [MindCraft](https://github.com/mindcraft-bots/mindcraft) — 核心 Bot 引擎
+- [Mineflayer](https://github.com/PrismarineJS/mineflayer) — Minecraft 协议库
 
 ## License
 
