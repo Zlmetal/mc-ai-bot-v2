@@ -257,6 +257,7 @@ app.post('/api/config', (req, res) => {
       if (newConfig.web.username) config.web.username = newConfig.web.username
       if (newConfig.web.password) config.web.password = newConfig.web.password
     }
+    if (!config.wake) config.wake = { enabled: false, word: '' }
     if (newConfig.wake) Object.assign(config.wake, newConfig.wake)
 
     saveConfig(config)
