@@ -9,6 +9,7 @@ RUN apt-get update && apt-get install -y \
     g++ \
     git \
     curl \
+    iproute2 \
     libgl1-mesa-glx \
     libglu1-mesa \
     libxi6 \
