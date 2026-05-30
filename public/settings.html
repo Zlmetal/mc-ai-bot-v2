@@ -154,6 +154,20 @@
       </div>
     </div>
 
+    <!-- 登录设置 -->
+    <div class="section">
+      <div class="section-title">🔐 登录设置</div>
+      <div class="field">
+        <label>用户名</label>
+        <input type="text" id="webUsername" value="admin">
+      </div>
+      <div class="field">
+        <label>密码</label>
+        <input type="password" id="webPassword" placeholder="留空则不修改">
+      </div>
+      <div class="help-text">修改后需要重新登录</div>
+    </div>
+
     <!-- AI 人设 -->
     <div class="section">
       <div class="section-title">👤 AI 人设</div>
@@ -173,6 +187,9 @@
     </div>
 
     <button class="btn-primary" id="btnSave">保存配置</button>
+    <div class="btn-group" style="margin-top: 12px;">
+      <button class="btn-secondary" id="btnLogout">退出登录</button>
+    </div>
   </div>
 
   <script>
@@ -248,6 +265,8 @@
         $('botName').value = config.bot?.name || 'andrew'
         $('botPersonality').value = config.bot?.personality || ''
         $('botStyle').value = config.bot?.style || ''
+        $('webUsername').value = config.web?.username || 'admin'
+        // 密码不回显
         const statusEl = $('mindcraftStatus')
         if (config._mindcraft_connected) {
           statusEl.textContent = '已连接'
@@ -262,14 +281,17 @@
 
     function buildConfig() {
       const apiKey = $('llmApiKey').value
+      const webPassword = $('webPassword').value
       const config = {
         mindcraft: { host: $('mindcraftHost').value, port: parseInt($('mindcraftPort').value) || 8080 },
         mc: { host: $('mcHost').value, port: parseInt($('mcPort').value) || 25565, version: $('mcVersion').value || '1.21.11' },
         llm: { provider: $('llmProvider').value, baseUrl: $('llmBaseUrl').value, model: $('llmModel').value },
         tts: { enabled: $('ttsEnabled').checked, voice: $('ttsVoice').value },
-        bot: { name: $('botName').value || 'andrew', personality: $('botPersonality').value, style: $('botStyle').value }
+        bot: { name: $('botName').value || 'andrew', personality: $('botPersonality').value, style: $('botStyle').value },
+        web: { username: $('webUsername').value || 'admin' }
       }
       if (apiKey && !apiKey.includes('...')) config.llm.apiKey = apiKey
+      if (webPassword) config.web.password = webPassword
       return config
     }
 
@@ -313,6 +335,10 @@
     $('btnSave').addEventListener('click', saveConfig)
     $('btnTestLLM').addEventListener('click', testLLM)
     $('btnTestTTS').addEventListener('click', testTTS)
+    $('btnLogout').addEventListener('click', async () => {
+      await fetch('/api/logout', { method: 'POST' })
+      window.location.href = '/login.html'
+    })
     loadConfig()
   </script>
 </body>
