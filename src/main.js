@@ -268,13 +268,29 @@ app.post('/api/config', (req, res) => {
 
     saveConfig(config)
     tts.updateConfig(config)
+
+    // 检查名字是否改变
+    const oldBotName = Object.keys(agentStates)[0] || 'andrew'
+    const newBotName = config.bot?.name || 'andrew'
+    const nameChanged = oldBotName !== newBotName
+
     syncMindCraftConfig()
 
-    // 重启 MindCraft Agent
-    if (connectedToMindCraft && mindcraftSocket) {
-      // 使用实际在线的 agent 名字
+    if (nameChanged) {
+      // 名字变了需要重启整个 MindCraft 进程
+      console.log(`[配置] Bot 名字从 ${oldBotName} 改为 ${newBotName}，需要重启 MindCraft`)
+      // 写入重启标记，start.sh 会检测到并重启
+      try {
+        fs.writeFileSync(path.join(__dirname, '..', 'data', '.restart'), '1')
+        // 发送 SIGUSR1 给 MindCraft 进程让它退出
+        process.kill(process.pid, 'SIGUSR1')
+      } catch (e) {
+        console.log('[配置] 重启标记写入失败，手动重启容器生效')
+      }
+    } else if (connectedToMindCraft && mindcraftSocket) {
+      // 名字没变，只重启 agent
       const agents = Object.keys(agentStates)
-      const currentAgentName = agents[0] || config.bot?.name || 'andrew'
+      const currentAgentName = agents[0] || newBotName
       mindcraftSocket.emit('restart-agent', currentAgentName)
       console.log('[配置] 已请求重启 MindCraft Agent:', currentAgentName)
     }
