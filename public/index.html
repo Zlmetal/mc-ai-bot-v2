@@ -2,53 +2,101 @@
 <html lang="zh-CN">
 <head>
   <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
   <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="mobile-web-app-capable" content="yes">
   <title>MC AI Bot</title>
   <style>
-    * { margin: 0; padding: 0; box-sizing: border-box; }
-    body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; background: #0a0a0a; color: #e0e0e0; height: 100vh; display: flex; flex-direction: column; overflow: hidden; }
-    .status-bar { padding: 12px 16px; background: #1a1a2e; border-bottom: 1px solid #333; display: flex; align-items: center; gap: 10px; flex-shrink: 0; }
-    .status-dot { width: 8px; height: 8px; border-radius: 50%; background: #f44336; }
+    * { margin: 0; padding: 0; box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
+    html, body { height: 100%; overflow: hidden; }
+    body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; background: #0a0a0a; color: #e0e0e0; display: flex; flex-direction: column; }
+
+    /* 状态栏 */
+    .status-bar { padding: 10px 14px; background: #1a1a2e; border-bottom: 1px solid #333; display: flex; align-items: center; gap: 8px; flex-shrink: 0; min-height: 44px; }
+    .status-dot { width: 8px; height: 8px; border-radius: 50%; background: #f44336; flex-shrink: 0; }
     .status-dot.online { background: #4caf50; animation: pulse 2s infinite; }
     @keyframes pulse { 0%, 100% { opacity: 1; } 50% { opacity: 0.4; } }
-    .status-info { flex: 1; }
-    .status-name { font-weight: 600; font-size: 15px; }
-    .status-detail { font-size: 12px; color: #888; margin-top: 2px; }
-    .settings-link { color: #888; text-decoration: none; font-size: 20px; }
-    .chat-area { flex: 1; overflow-y: auto; padding: 16px; display: flex; flex-direction: column; gap: 12px; scroll-behavior: smooth; }
-    .msg { max-width: 85%; padding: 10px 14px; border-radius: 16px; font-size: 15px; line-height: 1.5; word-break: break-word; animation: fadeIn 0.2s ease; }
-    @keyframes fadeIn { from { opacity: 0; transform: translateY(8px); } to { opacity: 1; transform: translateY(0); } }
+    .status-info { flex: 1; min-width: 0; }
+    .status-name { font-weight: 600; font-size: 14px; }
+    .status-detail { font-size: 11px; color: #888; margin-top: 1px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+    .status-actions { display: flex; gap: 6px; flex-shrink: 0; }
+    .settings-link { color: #888; text-decoration: none; font-size: 18px; padding: 4px; }
+
+    /* 聊天区域 */
+    .chat-area { flex: 1; overflow-y: auto; padding: 12px; display: flex; flex-direction: column; gap: 10px; -webkit-overflow-scrolling: touch; }
+    .msg { max-width: 88%; padding: 9px 12px; border-radius: 14px; font-size: 14px; line-height: 1.45; word-break: break-word; animation: fadeIn 0.2s ease; }
+    @keyframes fadeIn { from { opacity: 0; transform: translateY(6px); } to { opacity: 1; transform: translateY(0); } }
     .msg.user { align-self: flex-end; background: #2563eb; color: white; border-bottom-right-radius: 4px; }
     .msg.ai { align-self: flex-start; background: #1e1e2e; border: 1px solid #333; border-bottom-left-radius: 4px; }
-    .msg.system { align-self: center; background: none; color: #666; font-size: 12px; }
-    .msg.ai.speaking { border-color: #4caf50; box-shadow: 0 0 12px rgba(76, 175, 80, 0.2); }
-    .typing-indicator { display: none; align-self: flex-start; padding: 10px 14px; background: #1e1e2e; border: 1px solid #333; border-radius: 16px; border-bottom-left-radius: 4px; }
+    .msg.system { align-self: center; background: none; color: #666; font-size: 11px; }
+    .msg.ai.speaking { border-color: #4caf50; box-shadow: 0 0 10px rgba(76, 175, 80, 0.2); }
+    .typing-indicator { display: none; align-self: flex-start; padding: 9px 12px; background: #1e1e2e; border: 1px solid #333; border-radius: 14px; border-bottom-left-radius: 4px; }
     .typing-indicator.active { display: flex; gap: 4px; }
-    .typing-dot { width: 6px; height: 6px; background: #666; border-radius: 50%; animation: typingBounce 1.4s infinite; }
+    .typing-dot { width: 5px; height: 5px; background: #666; border-radius: 50%; animation: typingBounce 1.4s infinite; }
     .typing-dot:nth-child(2) { animation-delay: 0.2s; }
     .typing-dot:nth-child(3) { animation-delay: 0.4s; }
-    @keyframes typingBounce { 0%, 60%, 100% { transform: translateY(0); } 30% { transform: translateY(-6px); } }
-    .input-area { padding: 12px 16px; padding-bottom: max(12px, env(safe-area-inset-bottom)); background: #1a1a2e; border-top: 1px solid #333; display: flex; flex-direction: column; gap: 10px; flex-shrink: 0; }
-    .mode-switch { display: flex; gap: 8px; }
-    .mode-btn { flex: 1; padding: 8px 0; border: 1px solid #333; border-radius: 8px; background: #1e1e2e; color: #888; font-size: 13px; cursor: pointer; transition: all 0.2s; text-align: center; }
+    @keyframes typingBounce { 0%, 60%, 100% { transform: translateY(0); } 30% { transform: translateY(-5px); } }
+
+    /* 底部输入区 */
+    .input-area {
+      padding: 8px 10px;
+      padding-bottom: max(8px, env(safe-area-inset-bottom));
+      background: #1a1a2e;
+      border-top: 1px solid #333;
+      display: flex;
+      flex-direction: column;
+      gap: 6px;
+      flex-shrink: 0;
+    }
+
+    /* 模式切换 */
+    .mode-switch { display: flex; gap: 6px; }
+    .mode-btn {
+      flex: 1; padding: 6px 0; border: 1px solid #333; border-radius: 6px;
+      background: #1e1e2e; color: #888; font-size: 12px; cursor: pointer;
+      transition: all 0.2s; text-align: center;
+    }
     .mode-btn.active { background: #2563eb; color: white; border-color: #2563eb; }
-    .text-row { display: flex; gap: 10px; align-items: flex-end; }
-    .text-input { flex: 1; background: #0d0d1a; border: 1px solid #333; border-radius: 20px; padding: 10px 16px; color: white; font-size: 15px; outline: none; resize: none; max-height: 100px; font-family: inherit; }
+
+    /* 文字输入行 */
+    .text-row { display: flex; gap: 8px; align-items: flex-end; }
+    .text-input {
+      flex: 1; background: #0d0d1a; border: 1px solid #333; border-radius: 18px;
+      padding: 9px 14px; color: white; font-size: 14px; outline: none; resize: none;
+      max-height: 80px; font-family: inherit; line-height: 1.3;
+    }
     .text-input:focus { border-color: #2563eb; }
     .text-input::placeholder { color: #555; }
-    .btn { width: 44px; height: 44px; border-radius: 50%; border: none; cursor: pointer; display: flex; align-items: center; justify-content: center; font-size: 18px; transition: all 0.2s; flex-shrink: 0; }
+    .btn { width: 38px; height: 38px; border-radius: 50%; border: none; cursor: pointer;
+      display: flex; align-items: center; justify-content: center; font-size: 16px;
+      transition: all 0.15s; flex-shrink: 0; }
     .btn-send { background: #2563eb; color: white; }
     .btn-send:active { transform: scale(0.9); }
     .btn-send:disabled { background: #333; color: #666; }
-    .voice-row { display: flex; flex-direction: column; align-items: center; gap: 10px; padding: 10px 0; }
-    .voice-btn { width: 80px; height: 80px; border-radius: 50%; border: 3px solid #444; background: #1e1e2e; color: #aaa; font-size: 32px; cursor: pointer; transition: all 0.2s; display: flex; align-items: center; justify-content: center; }
-    .voice-btn:active { transform: scale(0.95); }
+
+    /* 语音输入行 */
+    .voice-row { display: flex; flex-direction: column; align-items: center; gap: 8px; padding: 6px 0; }
+    .voice-btns { display: flex; gap: 12px; align-items: center; }
+    .voice-btn {
+      width: 56px; height: 56px; border-radius: 50%; border: 2px solid #444;
+      background: #1e1e2e; color: #aaa; font-size: 22px; cursor: pointer;
+      transition: all 0.15s; display: flex; align-items: center; justify-content: center;
+    }
+    .voice-btn:active { transform: scale(0.93); }
     .voice-btn.recording { background: #d32f2f; border-color: #f44336; color: white; animation: pulse-ring 1s infinite; }
     .voice-btn.in-call { background: #d32f2f; border-color: #f44336; color: white; animation: pulse-ring 1.5s infinite; }
-    @keyframes pulse-ring { 0% { box-shadow: 0 0 0 0 rgba(244, 67, 54, 0.4); } 100% { box-shadow: 0 0 0 20px rgba(244, 67, 54, 0); } }
-    .voice-hint { font-size: 13px; color: #666; }
+    @keyframes pulse-ring { 0% { box-shadow: 0 0 0 0 rgba(244, 67, 54, 0.4); } 100% { box-shadow: 0 0 0 16px rgba(244, 67, 54, 0); } }
+    .voice-hint { font-size: 12px; color: #666; text-align: center; }
+    .voice-hint.active { color: #4caf50; }
     .voice-hint.recording { color: #f44336; }
+
+    /* 唤醒词状态 */
+    .wake-status {
+      font-size: 11px; color: #4caf50; text-align: center;
+      padding: 2px 8px; background: rgba(76,175,80,0.1); border-radius: 4px;
+      display: none;
+    }
+    .wake-status.active { display: block; }
   </style>
 </head>
 <body>
@@ -58,9 +106,12 @@
       <div class="status-name">MC AI Bot</div>
       <div class="status-detail" id="statusDetail">连接中...</div>
     </div>
-    <a href="/settings.html" class="settings-link">⚙️</a>
-    <a href="#" class="settings-link" id="btnLogout" title="退出登录">🚪</a>
+    <div class="status-actions">
+      <a href="/settings.html" class="settings-link">⚙️</a>
+      <a href="#" class="settings-link" id="btnLogout" title="退出">🚪</a>
+    </div>
   </div>
+
   <div class="chat-area" id="chatArea">
     <div class="msg system">与 AI 玩家对话</div>
     <div class="typing-indicator" id="typingIndicator">
@@ -69,39 +120,49 @@
       <div class="typing-dot"></div>
     </div>
   </div>
+
   <div class="input-area">
     <div class="mode-switch">
       <button class="mode-btn active" id="modeText">⌨️ 文字</button>
       <button class="mode-btn" id="modeVoice">🎤 语音</button>
     </div>
+    <!-- 文字模式 -->
     <div class="text-row" id="textRow">
       <textarea class="text-input" id="textInput" placeholder="说点什么..." rows="1"></textarea>
       <button class="btn btn-send" id="btnSend" disabled>↑</button>
     </div>
+    <!-- 语音模式 -->
     <div class="voice-row" id="voiceRow" style="display: none;">
-      <div style="display: flex; gap: 16px; align-items: center;">
+      <div class="voice-btns">
         <button class="voice-btn" id="btnVoice" title="按住说话">🎤</button>
-        <button class="voice-btn" id="btnPhone" title="实时通话" style="background: #1b5e20; border-color: #4caf50; font-size: 28px;">📞</button>
+        <button class="voice-btn" id="btnPhone" title="实时通话">📞</button>
       </div>
-      <div class="voice-hint" id="voiceHint">按住说话 | 📞 实时通话</div>
+      <div class="voice-hint" id="voiceHint">按住说话 · 📞实时通话</div>
+      <div class="wake-status" id="wakeStatus">🟢 监听中，说「小智」唤醒</div>
     </div>
   </div>
+
   <script>
     const $ = id => document.getElementById(id)
     const chatArea = $('chatArea')
     const typingIndicator = $('typingIndicator')
-    let currentMode = 'text'
+
+    // ========== 获取 Bot 名字（唤醒词） ==========
+    let wakeWord = '小智'
+    fetch('/api/config').then(r => r.json()).then(c => {
+      if (c.bot?.name) wakeWord = c.bot.name
+      $('wakeStatus').textContent = `🟢 监听中，说「${wakeWord}」唤醒`
+    }).catch(() => {})
 
     // ========== 模式切换 ==========
     $('modeText').addEventListener('click', () => {
-      currentMode = 'text'
       $('modeText').classList.add('active')
       $('modeVoice').classList.remove('active')
       $('textRow').style.display = 'flex'
       $('voiceRow').style.display = 'none'
+      stopCall()
     })
     $('modeVoice').addEventListener('click', () => {
-      currentMode = 'voice'
       $('modeVoice').classList.add('active')
       $('modeText').classList.remove('active')
       $('textRow').style.display = 'none'
@@ -117,70 +178,37 @@
 
     function connect() {
       if (ws && (ws.readyState === WebSocket.CONNECTING || ws.readyState === WebSocket.OPEN)) return
-      try {
-        ws = new WebSocket(`${protocol}//${location.host}`)
-      } catch (e) { scheduleReconnect(); return }
-
-      ws.onopen = () => {
-        reconnectAttempts = 0
-        $('statusDot').classList.add('online')
-        $('statusDetail').textContent = '已连接'
-      }
-      ws.onclose = () => {
-        $('statusDot').classList.remove('online')
-        $('statusDetail').textContent = '连接断开'
-        scheduleReconnect()
-      }
+      try { ws = new WebSocket(`${protocol}//${location.host}`) } catch (e) { scheduleReconnect(); return }
+      ws.onopen = () => { reconnectAttempts = 0; $('statusDot').classList.add('online'); $('statusDetail').textContent = '已连接' }
+      ws.onclose = () => { $('statusDot').classList.remove('online'); $('statusDetail').textContent = '连接断开'; scheduleReconnect() }
       ws.onerror = () => {}
-      ws.onmessage = (event) => {
-        try { handleMessage(JSON.parse(event.data)) } catch (e) {}
-      }
+      ws.onmessage = (e) => { try { handleMessage(JSON.parse(e.data)) } catch (err) {} }
     }
-
-    function scheduleReconnect() {
-      reconnectAttempts++
-      const delay = Math.min(3000 * reconnectAttempts, 30000)
-      $('statusDetail').textContent = `${Math.round(delay/1000)}秒后重连...`
-      setTimeout(connect, delay)
-    }
+    function scheduleReconnect() { reconnectAttempts++; setTimeout(connect, Math.min(3000 * reconnectAttempts, 30000)) }
 
     function handleMessage(data) {
       switch (data.type) {
         case 'status':
           if (data.data?.mindcraft_connected) {
             $('statusDot').classList.add('online')
-            const agent = data.data.agents?.[0]
-            $('statusDetail').textContent = agent?.in_game ? '游戏中' : '已连接'
+            $('statusDetail').textContent = '已连接'
           }
           break
-        case 'text':
-          addMessage('ai', data.text)
-          hideTyping()
-          break
-        case 'bot-message':
-          addMessage('ai', data.text)
-          hideTyping()
-          autoTTS(data.text)
-          break
-        case 'audio':
-          if (data.audioUrl) { audioQueue.push(data.audioUrl); playNextAudio() }
-          break
-        case 'stop_audio':
-          audioQueue = []
-          document.querySelectorAll('.msg.ai.speaking').forEach(el => el.classList.remove('speaking'))
-          break
+        case 'text': addMessage('ai', data.text); hideTyping(); break
+        case 'bot-message': addMessage('ai', data.text); hideTyping(); autoTTS(data.text); break
+        case 'audio': if (data.audioUrl) { audioQueue.push(data.audioUrl); playNextAudio() } break
+        case 'stop_audio': audioQueue = []; document.querySelectorAll('.msg.ai.speaking').forEach(el => el.classList.remove('speaking')); break
       }
     }
 
     // ========== TTS ==========
     async function autoTTS(text) {
       try {
-        const resp = await fetch('/api/tts', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ text }) })
-        const result = await resp.json()
-        if (result.success && result.audioUrl) { audioQueue.push(result.audioUrl); playNextAudio() }
+        const r = await fetch('/api/tts', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ text }) })
+        const d = await r.json()
+        if (d.success && d.audioUrl) { audioQueue.push(d.audioUrl); playNextAudio() }
       } catch (e) {}
     }
-
     async function playNextAudio() {
       if (isPlayingAudio || audioQueue.length === 0) return
       isPlayingAudio = true
@@ -204,7 +232,6 @@
     }
     function showTyping() { typingIndicator.classList.add('active'); chatArea.scrollTop = chatArea.scrollHeight }
     function hideTyping() { typingIndicator.classList.remove('active') }
-
     function sendMessage(text) {
       if (!text || !ws || ws.readyState !== WebSocket.OPEN) return
       addMessage('user', text)
@@ -215,135 +242,85 @@
     $('textInput').addEventListener('input', () => {
       $('btnSend').disabled = !$('textInput').value.trim()
       $('textInput').style.height = 'auto'
-      $('textInput').style.height = Math.min($('textInput').scrollHeight, 100) + 'px'
+      $('textInput').style.height = Math.min($('textInput').scrollHeight, 80) + 'px'
     })
     $('textInput').addEventListener('keydown', (e) => {
       if (e.key === 'Enter' && !e.shiftKey) {
         e.preventDefault()
-        const text = $('textInput').value.trim()
-        if (text) { sendMessage(text); $('textInput').value = ''; $('textInput').style.height = 'auto'; $('btnSend').disabled = true }
+        const t = $('textInput').value.trim()
+        if (t) { sendMessage(t); $('textInput').value = ''; $('textInput').style.height = 'auto'; $('btnSend').disabled = true }
       }
     })
     $('btnSend').addEventListener('click', () => {
-      const text = $('textInput').value.trim()
-      if (text) { sendMessage(text); $('textInput').value = ''; $('textInput').style.height = 'auto'; $('btnSend').disabled = true }
+      const t = $('textInput').value.trim()
+      if (t) { sendMessage(t); $('textInput').value = ''; $('textInput').style.height = 'auto'; $('btnSend').disabled = true }
     })
 
-    // ========== 语音输入 ==========
+    // ========== 语音（按住说话 + STT） ==========
     let mediaRecorder = null
     let audioChunks = []
     let isRecording = false
-    let useServerSTT = false  // 是否使用服务端 Whisper
-    let browserRecognition = null  // 浏览器内置语音识别
 
     async function initVoice() {
-      // 检测是否支持 MediaRecorder（需要 HTTPS）
-      if (location.protocol === 'https:' && navigator.mediaDevices && navigator.mediaDevices.getUserMedia) {
-        try {
-          const stream = await navigator.mediaDevices.getUserMedia({ audio: true })
-          mediaRecorder = new MediaRecorder(stream, { mimeType: 'audio/webm;codecs=opus' })
-          mediaRecorder.ondataavailable = (e) => { if (e.data.size > 0) audioChunks.push(e.data) }
-          mediaRecorder.onstop = async () => {
-            $('voiceHint').textContent = '识别中...'
-            const audioBlob = new Blob(audioChunks, { type: 'audio/webm' })
-            audioChunks = []
-            if (audioBlob.size < 1000) { $('voiceHint').textContent = '按住说话'; return }
-            try {
-              const resp = await fetch('/api/stt', { method: 'POST', headers: { 'Content-Type': 'audio/webm' }, body: audioBlob })
-              const result = await resp.json()
-              if (result.success && result.text) { sendMessage(result.text) }
-              else { addMessage('system', '识别失败: ' + (result.message || '未识别到内容')) }
-            } catch (e) { addMessage('system', '识别出错') }
-            $('voiceHint').textContent = '按住说话'
-          }
-          useServerSTT = true
-          console.log('[Voice] ✅ HTTPS 模式 - 服务端 Whisper STT')
+      if (location.protocol !== 'https:' && location.hostname !== 'localhost') {
+        // HTTP 环境，降级到 Web Speech API
+        const SR = window.SpeechRecognition || window.webkitSpeechRecognition
+        if (SR) {
+          const rec = new SR()
+          rec.lang = 'zh-CN'; rec.continuous = false; rec.interimResults = false
+          rec.onstart = () => { isRecording = true; $('btnVoice').classList.add('recording'); $('voiceHint').textContent = '正在听...' }
+          rec.onresult = (e) => { const t = e.results[e.results.length - 1][0].transcript; if (t.trim()) sendMessage(t) }
+          rec.onerror = () => stopRecording()
+          rec.onend = () => stopRecording()
+          $('btnVoice').addEventListener('mousedown', startRecording.bind(null, rec))
+          $('btnVoice').addEventListener('mouseup', stopRecording.bind(null, rec))
+          $('btnVoice').addEventListener('mouseleave', stopRecording.bind(null, rec))
+          $('btnVoice').addEventListener('touchstart', (e) => { e.preventDefault(); startRecording(rec) })
+          $('btnVoice').addEventListener('touchend', (e) => { e.preventDefault(); stopRecording(rec) })
           return
-        } catch (e) {
-          console.warn('[Voice] MediaRecorder 不可用，降级到 Web Speech API')
         }
       }
-
-      // 降级：使用浏览器内置语音识别（HTTP 环境可用）
-      const SR = window.SpeechRecognition || window.webkitSpeechRecognition
-      if (SR) {
-        browserRecognition = new SR()
-        browserRecognition.lang = 'zh-CN'
-        browserRecognition.continuous = false
-        browserRecognition.interimResults = false
-        browserRecognition.onstart = () => {
-          isRecording = true
-          $('btnVoice').classList.add('recording')
-          $('voiceHint').textContent = '正在听...'
-          $('voiceHint').classList.add('recording')
+      // HTTPS 环境，用 MediaRecorder + Whisper
+      try {
+        const stream = await navigator.mediaDevices.getUserMedia({ audio: true })
+        mediaRecorder = new MediaRecorder(stream, { mimeType: 'audio/webm;codecs=opus' })
+        mediaRecorder.ondataavailable = (e) => { if (e.data.size > 0) audioChunks.push(e.data) }
+        mediaRecorder.onstop = async () => {
+          $('voiceHint').textContent = '识别中...'
+          const blob = new Blob(audioChunks, { type: 'audio/webm' }); audioChunks = []
+          if (blob.size < 1000) { $('voiceHint').textContent = '按住说话 · 📞实时通话'; return }
+          try {
+            const r = await fetch('/api/stt', { method: 'POST', headers: { 'Content-Type': 'audio/webm' }, body: blob })
+            const d = await r.json()
+            if (d.success && d.text) sendMessage(d.text)
+          } catch (e) {}
+          $('voiceHint').textContent = '按住说话 · 📞实时通话'
         }
-        browserRecognition.onresult = (event) => {
-          const result = event.results[event.results.length - 1]
-          if (result.isFinal && result[0].transcript.trim()) {
-            sendMessage(result[0].transcript)
-          }
-        }
-        browserRecognition.onerror = (e) => {
-          console.error('[Voice] 错误:', e.error)
-          if (e.error === 'not-allowed') {
-            $('voiceHint').textContent = '请允许麦克风权限'
-          }
-        }
-        browserRecognition.onend = () => { stopRecording() }
-        console.log('[Voice] ✅ HTTP 模式 - 浏览器内置语音识别')
-        return
-      }
-
-      // 都不支持
-      console.warn('[Voice] 无可用语音识别方案')
-      $('voiceHint').textContent = '语音不可用'
+      } catch (e) { $('voiceHint').textContent = '麦克风不可用' }
     }
-
-    function startRecording() {
+    function startRecording(rec) {
       if (isRecording) return
-      if (useServerSTT && mediaRecorder) {
-        isRecording = true
-        audioChunks = []
-        mediaRecorder.start(100)
-        $('btnVoice').classList.add('recording')
-        $('voiceHint').textContent = '正在录音...'
-        $('voiceHint').classList.add('recording')
-      } else if (browserRecognition) {
-        try { browserRecognition.start() } catch (e) {}
-      }
+      if (mediaRecorder) { isRecording = true; audioChunks = []; mediaRecorder.start(100) }
+      else if (rec) { try { rec.start() } catch (e) {} }
+      $('btnVoice').classList.add('recording')
+      $('voiceHint').textContent = '正在录音...'
+      $('voiceHint').classList.add('recording')
     }
-
-    function stopRecording() {
-      if (!isRecording) return
-      isRecording = false
-      if (useServerSTT && mediaRecorder) {
-        mediaRecorder.stop()
-      } else if (browserRecognition) {
-        try { browserRecognition.stop() } catch (e) {}
-      }
+    function stopRecording(rec) {
+      if (!isRecording) return; isRecording = false
+      if (mediaRecorder && mediaRecorder.state === 'recording') mediaRecorder.stop()
+      else if (rec) { try { rec.stop() } catch (e) {} }
       $('btnVoice').classList.remove('recording')
-      $('voiceHint').textContent = '按住说话'
+      $('voiceHint').textContent = '按住说话 · 📞实时通话'
       $('voiceHint').classList.remove('recording')
     }
+    $('btnVoice').addEventListener('mousedown', () => { if (isPlayingAudio) { audioQueue = []; isPlayingAudio = false } startRecording(null) })
+    $('btnVoice').addEventListener('mouseup', () => stopRecording(null))
+    $('btnVoice').addEventListener('mouseleave', () => stopRecording(null))
+    $('btnVoice').addEventListener('touchstart', (e) => { e.preventDefault(); startRecording(null) })
+    $('btnVoice').addEventListener('touchend', (e) => { e.preventDefault(); stopRecording(null) })
 
-    $('btnVoice').addEventListener('mousedown', () => { if (isPlayingAudio) { audioQueue = []; isPlayingAudio = false } startRecording() })
-    $('btnVoice').addEventListener('mouseup', stopRecording)
-    $('btnVoice').addEventListener('mouseleave', stopRecording)
-    $('btnVoice').addEventListener('touchstart', (e) => { e.preventDefault(); startRecording() })
-    $('btnVoice').addEventListener('touchend', (e) => { e.preventDefault(); stopRecording() })
-
-    // ========== 启动 ==========
-    initVoice()
-    connect()
-
-    // 退出登录
-    $('btnLogout').addEventListener('click', async (e) => {
-      e.preventDefault()
-      await fetch('/api/logout', { method: 'POST' })
-      window.location.href = '/login.html'
-    })
-
-    // ========== 实时通话模式 ==========
+    // ========== 实时通话（带唤醒词） ==========
     let isInCall = false
     let callAudioContext = null
     let callAnalyser = null
@@ -352,115 +329,101 @@
     let callIsSpeaking = false
     let callSilenceTimer = null
     let callAnimFrame = null
-    const SILENCE_THRESHOLD = 0.015  // 静音阈值
-    const SILENCE_DURATION = 1200   // 静音多久算说完一句话（毫秒）
-    const MIN_SPEECH_DURATION = 500 // 最短语音时长（毫秒）
+    let callIsListening = false  // true = 正在听唤醒词后的内容
+    const SILENCE_THRESHOLD = 0.015
+    const SILENCE_DURATION = 1200
+    const MIN_SPEECH_DURATION = 500
     let callSpeechStartTime = 0
 
-    $('btnPhone').addEventListener('click', () => {
-      if (isInCall) {
-        stopCall()
-      } else {
-        startCall()
-      }
-    })
+    $('btnPhone').addEventListener('click', () => { isInCall ? stopCall() : startCall() })
 
     async function startCall() {
       try {
         const stream = await navigator.mediaDevices.getUserMedia({ audio: true })
-        
-        // 设置 VAD
         callAudioContext = new AudioContext()
         const source = callAudioContext.createMediaStreamSource(stream)
         callAnalyser = callAudioContext.createAnalyser()
         callAnalyser.fftSize = 512
         source.connect(callAnalyser)
-
-        // 设置录音
         callMediaRecorder = new MediaRecorder(stream, { mimeType: 'audio/webm;codecs=opus' })
         callMediaRecorder.ondataavailable = (e) => { if (e.data.size > 0) callChunks.push(e.data) }
         callMediaRecorder.onstop = async () => {
-          const blob = new Blob(callChunks, { type: 'audio/webm' })
-          callChunks = []
-          if (blob.size < 1000 || !isInCall) return
-          // 发送到 STT
+          const blob = new Blob(callChunks, { type: 'audio/webm' }); callChunks = []
+          if (blob.size < 1000 || !isInCall) { if (isInCall) { callMediaRecorder.start(100) } return }
+          $('voiceHint').textContent = '⏳ 识别中...'
           try {
-            const resp = await fetch('/api/stt', { method: 'POST', headers: { 'Content-Type': 'audio/webm' }, body: blob })
-            const result = await resp.json()
-            if (result.success && result.text && isInCall) {
-              sendMessage(result.text)
+            const r = await fetch('/api/stt', { method: 'POST', headers: { 'Content-Type': 'audio/webm' }, body: blob })
+            const d = await r.json()
+            if (d.success && d.text && isInCall) {
+              // 检查是否包含唤醒词
+              if (d.text.includes(wakeWord)) {
+                // 唤醒词命中，发送剩余内容
+                const cleaned = d.text.replace(new RegExp(wakeWord, 'g'), '').trim()
+                if (cleaned) sendMessage(cleaned)
+                else sendMessage('你好')
+              } else if (callIsListening) {
+                // 已唤醒状态，直接发送
+                sendMessage(d.text)
+                callIsListening = false  // 说完回到监听状态
+              }
             }
           } catch (e) {}
-          // 识别说完后继续监听
           if (isInCall) {
-            setTimeout(() => { if (isInCall) callMediaRecorder.start(100) }, 200)
+            $('voiceHint').textContent = `🟢 监听中，说「${wakeWord}」唤醒`
+            callMediaRecorder.start(100)
           }
         }
-
         isInCall = true
         $('btnPhone').classList.add('in-call')
         $('btnPhone').textContent = '📵'
-        $('voiceHint').textContent = '通话中... 说话自动识别'
-        addMessage('system', '📞 实时通话已开启')
-
-        // 开始录音和 VAD 监听
+        $('voiceHint').textContent = `🟢 监听中，说「${wakeWord}」唤醒`
+        $('wakeStatus').classList.add('active')
+        $('wakeStatus').textContent = `🟢 监听中，说「${wakeWord}」唤醒`
+        addMessage('system', `📞 实时通话已开启，说「${wakeWord}」唤醒 AI`)
         callMediaRecorder.start(100)
         startVAD()
-
-      } catch (e) {
-        addMessage('system', '麦克风权限获取失败')
-      }
+      } catch (e) { addMessage('system', '麦克风权限获取失败') }
     }
 
     function stopCall() {
-      isInCall = false
+      isInCall = false; callIsListening = false
       $('btnPhone').classList.remove('in-call')
       $('btnPhone').textContent = '📞'
-      $('voiceHint').textContent = '按住说话 | 📞 实时通话'
-      addMessage('system', '📞 实时通话已结束')
-
-      if (callMediaRecorder && callMediaRecorder.state === 'recording') {
-        callMediaRecorder.stop()
-      }
+      $('voiceHint').textContent = '按住说话 · 📞实时通话'
+      $('wakeStatus').classList.remove('active')
+      addMessage('system', '📞 通话已结束')
+      if (callMediaRecorder && callMediaRecorder.state === 'recording') callMediaRecorder.stop()
       if (callAnimFrame) cancelAnimationFrame(callAnimFrame)
       if (callAudioContext) callAudioContext.close()
-      callAudioContext = null
-      callAnalyser = null
-      callIsSpeaking = false
+      callAudioContext = null; callAnalyser = null; callIsSpeaking = false
       if (callSilenceTimer) clearTimeout(callSilenceTimer)
     }
 
     function startVAD() {
       const dataArray = new Uint8Array(callAnalyser.frequencyBinCount)
-
       function checkVolume() {
         if (!isInCall || !callAnalyser) return
-
         callAnalyser.getByteFrequencyData(dataArray)
         let sum = 0
         for (let i = 0; i < dataArray.length; i++) sum += dataArray[i]
-        const avg = sum / dataArray.length / 255  // 0~1
-
+        const avg = sum / dataArray.length / 255
         if (avg > SILENCE_THRESHOLD) {
-          // 检测到声音
           if (!callIsSpeaking) {
             callIsSpeaking = true
             callSpeechStartTime = Date.now()
-            $('voiceHint').textContent = '🔴 正在听你说话...'
+            $('voiceHint').textContent = '🔴 正在听...'
+            $('voiceHint').classList.add('recording')
           }
-          // 重置静音计时器
-          if (callSilenceTimer) clearTimeout(callSilenceTimer)
-          callSilenceTimer = null
+          if (callSilenceTimer) { clearTimeout(callSilenceTimer); callSilenceTimer = null }
         } else {
-          // 静音
           if (callIsSpeaking && !callSilenceTimer) {
             callSilenceTimer = setTimeout(() => {
-              // 静音足够久，认为说完了
               const duration = Date.now() - callSpeechStartTime
               if (duration > MIN_SPEECH_DURATION && callMediaRecorder.state === 'recording') {
                 callIsSpeaking = false
                 $('voiceHint').textContent = '⏳ 识别中...'
-                callMediaRecorder.stop()  // 触发 onstop -> STT
+                $('voiceHint').classList.remove('recording')
+                callMediaRecorder.stop()
               } else {
                 callIsSpeaking = false
                 callSilenceTimer = null
@@ -468,12 +431,21 @@
             }, SILENCE_DURATION)
           }
         }
-
         callAnimFrame = requestAnimationFrame(checkVolume)
       }
-
       checkVolume()
     }
+
+    // ========== 退出登录 ==========
+    $('btnLogout').addEventListener('click', async (e) => {
+      e.preventDefault()
+      await fetch('/api/logout', { method: 'POST' })
+      window.location.href = '/login.html'
+    })
+
+    // ========== 启动 ==========
+    initVoice()
+    connect()
   </script>
 </body>
 </html>
