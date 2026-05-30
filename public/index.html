@@ -45,6 +45,7 @@
     .voice-btn { width: 80px; height: 80px; border-radius: 50%; border: 3px solid #444; background: #1e1e2e; color: #aaa; font-size: 32px; cursor: pointer; transition: all 0.2s; display: flex; align-items: center; justify-content: center; }
     .voice-btn:active { transform: scale(0.95); }
     .voice-btn.recording { background: #d32f2f; border-color: #f44336; color: white; animation: pulse-ring 1s infinite; }
+    .voice-btn.in-call { background: #d32f2f; border-color: #f44336; color: white; animation: pulse-ring 1.5s infinite; }
     @keyframes pulse-ring { 0% { box-shadow: 0 0 0 0 rgba(244, 67, 54, 0.4); } 100% { box-shadow: 0 0 0 20px rgba(244, 67, 54, 0); } }
     .voice-hint { font-size: 13px; color: #666; }
     .voice-hint.recording { color: #f44336; }
@@ -77,8 +78,11 @@
       <button class="btn btn-send" id="btnSend" disabled>↑</button>
     </div>
     <div class="voice-row" id="voiceRow" style="display: none;">
-      <button class="voice-btn" id="btnVoice">🎤</button>
-      <div class="voice-hint" id="voiceHint">按住说话</div>
+      <div style="display: flex; gap: 16px; align-items: center;">
+        <button class="voice-btn" id="btnVoice" title="按住说话">🎤</button>
+        <button class="voice-btn" id="btnPhone" title="实时通话" style="background: #1b5e20; border-color: #4caf50; font-size: 28px;">📞</button>
+      </div>
+      <div class="voice-hint" id="voiceHint">按住说话 | 📞 实时通话</div>
     </div>
   </div>
   <script>
@@ -330,6 +334,138 @@
     // ========== 启动 ==========
     initVoice()
     connect()
+
+    // ========== 实时通话模式 ==========
+    let isInCall = false
+    let callAudioContext = null
+    let callAnalyser = null
+    let callMediaRecorder = null
+    let callChunks = []
+    let callIsSpeaking = false
+    let callSilenceTimer = null
+    let callAnimFrame = null
+    const SILENCE_THRESHOLD = 0.015  // 静音阈值
+    const SILENCE_DURATION = 1200   // 静音多久算说完一句话（毫秒）
+    const MIN_SPEECH_DURATION = 500 // 最短语音时长（毫秒）
+    let callSpeechStartTime = 0
+
+    $('btnPhone').addEventListener('click', () => {
+      if (isInCall) {
+        stopCall()
+      } else {
+        startCall()
+      }
+    })
+
+    async function startCall() {
+      try {
+        const stream = await navigator.mediaDevices.getUserMedia({ audio: true })
+        
+        // 设置 VAD
+        callAudioContext = new AudioContext()
+        const source = callAudioContext.createMediaStreamSource(stream)
+        callAnalyser = callAudioContext.createAnalyser()
+        callAnalyser.fftSize = 512
+        source.connect(callAnalyser)
+
+        // 设置录音
+        callMediaRecorder = new MediaRecorder(stream, { mimeType: 'audio/webm;codecs=opus' })
+        callMediaRecorder.ondataavailable = (e) => { if (e.data.size > 0) callChunks.push(e.data) }
+        callMediaRecorder.onstop = async () => {
+          const blob = new Blob(callChunks, { type: 'audio/webm' })
+          callChunks = []
+          if (blob.size < 1000 || !isInCall) return
+          // 发送到 STT
+          try {
+            const resp = await fetch('/api/stt', { method: 'POST', headers: { 'Content-Type': 'audio/webm' }, body: blob })
+            const result = await resp.json()
+            if (result.success && result.text && isInCall) {
+              sendMessage(result.text)
+            }
+          } catch (e) {}
+          // 识别说完后继续监听
+          if (isInCall) {
+            setTimeout(() => { if (isInCall) callMediaRecorder.start(100) }, 200)
+          }
+        }
+
+        isInCall = true
+        $('btnPhone').classList.add('in-call')
+        $('btnPhone').textContent = '📵'
+        $('voiceHint').textContent = '通话中... 说话自动识别'
+        addMessage('system', '📞 实时通话已开启')
+
+        // 开始录音和 VAD 监听
+        callMediaRecorder.start(100)
+        startVAD()
+
+      } catch (e) {
+        addMessage('system', '麦克风权限获取失败')
+      }
+    }
+
+    function stopCall() {
+      isInCall = false
+      $('btnPhone').classList.remove('in-call')
+      $('btnPhone').textContent = '📞'
+      $('voiceHint').textContent = '按住说话 | 📞 实时通话'
+      addMessage('system', '📞 实时通话已结束')
+
+      if (callMediaRecorder && callMediaRecorder.state === 'recording') {
+        callMediaRecorder.stop()
+      }
+      if (callAnimFrame) cancelAnimationFrame(callAnimFrame)
+      if (callAudioContext) callAudioContext.close()
+      callAudioContext = null
+      callAnalyser = null
+      callIsSpeaking = false
+      if (callSilenceTimer) clearTimeout(callSilenceTimer)
+    }
+
+    function startVAD() {
+      const dataArray = new Uint8Array(callAnalyser.frequencyBinCount)
+
+      function checkVolume() {
+        if (!isInCall || !callAnalyser) return
+
+        callAnalyser.getByteFrequencyData(dataArray)
+        let sum = 0
+        for (let i = 0; i < dataArray.length; i++) sum += dataArray[i]
+        const avg = sum / dataArray.length / 255  // 0~1
+
+        if (avg > SILENCE_THRESHOLD) {
+          // 检测到声音
+          if (!callIsSpeaking) {
+            callIsSpeaking = true
+            callSpeechStartTime = Date.now()
+            $('voiceHint').textContent = '🔴 正在听你说话...'
+          }
+          // 重置静音计时器
+          if (callSilenceTimer) clearTimeout(callSilenceTimer)
+          callSilenceTimer = null
+        } else {
+          // 静音
+          if (callIsSpeaking && !callSilenceTimer) {
+            callSilenceTimer = setTimeout(() => {
+              // 静音足够久，认为说完了
+              const duration = Date.now() - callSpeechStartTime
+              if (duration > MIN_SPEECH_DURATION && callMediaRecorder.state === 'recording') {
+                callIsSpeaking = false
+                $('voiceHint').textContent = '⏳ 识别中...'
+                callMediaRecorder.stop()  // 触发 onstop -> STT
+              } else {
+                callIsSpeaking = false
+                callSilenceTimer = null
+              }
+            }, SILENCE_DURATION)
+          }
+        }
+
+        callAnimFrame = requestAnimationFrame(checkVolume)
+      }
+
+      checkVolume()
+    }
   </script>
 </body>
 </html>
