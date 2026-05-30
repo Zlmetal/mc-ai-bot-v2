@@ -129,7 +129,7 @@
 
     <!-- 语音合成 -->
     <div class="section">
-      <div class="section-title">🔊 语音合成（Edge-TTS）</div>
+      <div class="section-title">🔊 语音合成</div>
       <div class="field">
         <div class="checkbox-row">
           <input type="checkbox" id="ttsEnabled" checked>
@@ -137,17 +137,59 @@
         </div>
       </div>
       <div class="field">
-        <label>音色</label>
-        <select id="ttsVoice">
-          <option value="云希（男）">云希（男）- 温和自然</option>
-          <option value="晓晓（女）">晓晓（女）- 温柔亲切</option>
-          <option value="晓伊（女）">晓伊（女）- 清新甜美</option>
-          <option value="云扬（男）">云扬（男）- 沉稳大气</option>
-          <option value="云健（男）">云健（男）- 阳刚有力</option>
-          <option value="云夏（男）">云夏（男）- 活泼少年</option>
-          <option value="晓萱（女）">晓萱（女）- 成熟知性</option>
-          <option value="晓辰（女）">晓辰（女）- 温暖甜美</option>
+        <label>合成方式</label>
+        <select id="ttsMode">
+          <option value="edge">Edge-TTS（免费，内置音色）</option>
+          <option value="mimo">MiMo TTS（API 调用，支持自定义音色）</option>
         </select>
+      </div>
+      <div id="edgeSection">
+        <div class="field">
+          <label>Edge 音色</label>
+          <select id="ttsVoice">
+            <option value="云希（男）">云希（男）- 温和自然</option>
+            <option value="晓晓（女）">晓晓（女）- 温柔亲切</option>
+            <option value="晓伊（女）">晓伊（女）- 清新甜美</option>
+            <option value="云扬（男）">云扬（男）- 沉稳大气</option>
+            <option value="云健（男）">云健（男）- 阳刚有力</option>
+            <option value="云夏（男）">云夏（男）- 活泼少年</option>
+            <option value="晓萱（女）">晓萱（女）- 成熟知性</option>
+            <option value="晓辰（女）">晓辰（女）- 温暖甜美</option>
+          </select>
+        </div>
+      </div>
+      <div id="mimoSection" style="display: none;">
+        <div class="field">
+          <label>API 地址</label>
+          <div style="display: flex; gap: 8px; align-items: flex-end;">
+            <div style="flex: 1;">
+              <input type="text" id="ttsMimoBaseUrl" placeholder="https://api.xiaomimimo.com/v1">
+            </div>
+            <button class="btn-small" id="btnFetchTtsModels" style="height: 40px;">获取模型</button>
+          </div>
+        </div>
+        <div class="field">
+          <label>API Key</label>
+          <div style="display: flex; gap: 8px; align-items: flex-end;">
+            <div style="flex: 1;">
+              <input type="password" id="ttsMimoApiKey" placeholder="sk-...">
+            </div>
+            <button class="btn-small" id="btnTestTtsKey" style="height: 40px;">验证连接</button>
+          </div>
+        </div>
+        <div class="field">
+          <label>TTS 模型</label>
+          <select id="ttsMimoModelSelect" style="display: none;">
+            <option value="">-- 请先获取模型列表 --</option>
+          </select>
+          <input type="text" id="ttsMimoModel" value="mimo-v2.5-tts" placeholder="手动输入或从上方选择">
+          <div class="help-text">可选: mimo-v2.5-tts（预置音色）、mimo-v2.5-tts-voicedesign（音色设计）、mimo-v2.5-tts-voiceclone（音色克隆）</div>
+        </div>
+        <div class="field">
+          <label>音色名</label>
+          <input type="text" id="ttsMimoVoice" value="Chloe" placeholder="例如: Chloe、mimo_default">
+          <div class="help-text">预置音色名，voicedesign 模型下此项为音色描述</div>
+        </div>
       </div>
       <div class="btn-group">
         <button class="btn-secondary" id="btnTestTTS">测试语音</button>
@@ -213,6 +255,65 @@
       }
     })
 
+    // TTS 模式切换
+    $('ttsMode').addEventListener('change', () => {
+      const mode = $('ttsMode').value
+      $('edgeSection').style.display = mode === 'edge' ? 'block' : 'none'
+      $('mimoSection').style.display = mode === 'mimo' ? 'block' : 'none'
+    })
+
+    // 获取 TTS 模型列表
+    $('btnFetchTtsModels').addEventListener('click', async () => {
+      const baseUrl = $('ttsMimoBaseUrl').value.trim()
+      const apiKey = $('ttsMimoApiKey').value.trim()
+      if (!baseUrl) { showMessage('❌ 请先填写 TTS API 地址', 'error'); return }
+      $('btnFetchTtsModels').disabled = true
+      $('btnFetchTtsModels').textContent = '获取中...'
+      showMessage('正在获取 TTS 模型列表...', 'info')
+      try {
+        const resp = await fetch('/api/fetch-models', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ baseUrl, apiKey })
+        })
+        const result = await resp.json()
+        if (result.success && result.models && result.models.length > 0) {
+          $('ttsMimoModelSelect').innerHTML = ''
+          result.models.forEach(model => {
+            const option = document.createElement('option')
+            option.value = model.id
+            option.textContent = model.id
+            if (model.id === $('ttsMimoModel').value) option.selected = true
+            $('ttsMimoModelSelect').appendChild(option)
+          })
+          $('ttsMimoModelSelect').style.display = 'block'
+          $('ttsMimoModel').style.display = 'none'
+          $('ttsMimoModelSelect').onchange = () => { $('ttsMimoModel').value = $('ttsMimoModelSelect').value }
+          showMessage(`✅ 获取到 ${result.models.length} 个模型`, 'success')
+        } else {
+          showMessage('❌ ' + (result.message || '未获取到模型'), 'error')
+        }
+      } catch (err) { showMessage('❌ 获取失败: ' + err.message, 'error') }
+      finally { $('btnFetchTtsModels').disabled = false; $('btnFetchTtsModels').textContent = '获取模型' }
+    })
+
+    // 验证 TTS API Key
+    $('btnTestTtsKey').addEventListener('click', async () => {
+      const apiKey = $('ttsMimoApiKey').value.trim()
+      if (!apiKey) { showMessage('❌ 请先填写 TTS API Key', 'error'); return }
+      showMessage('正在验证连接...', 'info')
+      try {
+        const resp = await fetch('/api/test-llm', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ llm: { baseUrl: $('ttsMimoBaseUrl').value, apiKey, model: 'mimo-v2.5' } })
+        })
+        const result = await resp.json()
+        if (result.success) showMessage('✅ API Key 验证成功', 'success')
+        else showMessage('❌ 验证失败: ' + result.message, 'error')
+      } catch (err) { showMessage('❌ 验证失败: ' + err.message, 'error') }
+    })
+
     $('btnFetchModels').addEventListener('click', async () => {
       const baseUrl = $('llmBaseUrl').value.trim()
       const apiKey = $('llmApiKey').value.trim()
@@ -261,7 +362,15 @@
         $('llmApiKey').value = config.llm?.apiKey || ''
         $('llmModel').value = config.llm?.model || 'mimo-v2.5'
         $('ttsEnabled').checked = config.tts?.enabled !== false
+        $('ttsMode').value = config.tts?.mode || 'edge'
         $('ttsVoice').value = config.tts?.voice || '云希（男）'
+        $('ttsMimoBaseUrl').value = config.tts?.mimoBaseUrl || ''
+        $('ttsMimoApiKey').value = config.tts?.mimoApiKey || ''
+        $('ttsMimoModel').value = config.tts?.mimoModel || 'mimo-v2.5-tts'
+        $('ttsMimoVoice').value = config.tts?.mimoVoice || 'Chloe'
+        // 触发模式切换显示
+        $('edgeSection').style.display = ($('ttsMode').value === 'edge') ? 'block' : 'none'
+        $('mimoSection').style.display = ($('ttsMode').value === 'mimo') ? 'block' : 'none'
         $('botName').value = config.bot?.name || 'andrew'
         $('botPersonality').value = config.bot?.personality || ''
         $('botStyle').value = config.bot?.style || ''
@@ -286,7 +395,15 @@
         mindcraft: { host: $('mindcraftHost').value, port: parseInt($('mindcraftPort').value) || 8080 },
         mc: { host: $('mcHost').value, port: parseInt($('mcPort').value) || 25565, version: $('mcVersion').value || '1.21.11' },
         llm: { provider: $('llmProvider').value, baseUrl: $('llmBaseUrl').value, model: $('llmModel').value },
-        tts: { enabled: $('ttsEnabled').checked, voice: $('ttsVoice').value },
+        tts: {
+          enabled: $('ttsEnabled').checked,
+          mode: $('ttsMode').value,
+          voice: $('ttsVoice').value,
+          mimoBaseUrl: $('ttsMimoBaseUrl').value,
+          mimoApiKey: ($('ttsMimoApiKey').value && !$('ttsMimoApiKey').value.includes('...')) ? $('ttsMimoApiKey').value : undefined,
+          mimoModel: $('ttsMimoModel').value,
+          mimoVoice: $('ttsMimoVoice').value
+        },
         bot: { name: $('botName').value || 'andrew', personality: $('botPersonality').value, style: $('botStyle').value },
         web: { username: $('webUsername').value || 'admin' }
       }
