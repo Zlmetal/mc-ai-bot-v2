@@ -59,6 +59,7 @@
       <div class="status-detail" id="statusDetail">连接中...</div>
     </div>
     <a href="/settings.html" class="settings-link">⚙️</a>
+    <a href="#" class="settings-link" id="btnLogout" title="退出登录">🚪</a>
   </div>
   <div class="chat-area" id="chatArea">
     <div class="msg system">与 AI 玩家对话</div>
@@ -334,6 +335,13 @@
     // ========== 启动 ==========
     initVoice()
     connect()
+
+    // 退出登录
+    $('btnLogout').addEventListener('click', async (e) => {
+      e.preventDefault()
+      await fetch('/api/logout', { method: 'POST' })
+      window.location.href = '/login.html'
+    })
 
     // ========== 实时通话模式 ==========
     let isInCall = false
