@@ -78,13 +78,35 @@ start_mindcraft() {
   sleep 5
 }
 
-# 循环启动 MindCraft，崩溃自动重启
+# 后台启动 MindCraft 循环
 (
   while true; do
     start_mindcraft
   done
 ) &
 MINDCRAFT_PID=$!
+
+# 监听重启标记（用于名字变更等需要完全重启的场景）
+(
+  while true; do
+    sleep 3
+    if [ -f /app/data/.restart ]; then
+      rm -f /app/data/.restart
+      echo "[重启] 检测到重启标记，重启 MindCraft..."
+      kill $MINDCRAFT_PID 2>/dev/null
+      sleep 1
+      # 重新启动 MindCraft 循环
+      (
+        while true; do
+          start_mindcraft
+        done
+      ) &
+      MINDCRAFT_PID=$!
+      echo "[重启] MindCraft 已重启"
+    fi
+  done
+) &
+RESTART_PID=$!
 
 # 等待 MindServer 启动
 echo "[启动] 等待 MindCraft 启动..."
