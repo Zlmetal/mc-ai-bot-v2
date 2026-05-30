@@ -379,12 +379,19 @@
               } else {
                 // 唤醒词启用，需要检测唤醒词
                 if (d.text.includes(wakeWord)) {
+                  // 唤醒词命中，标记为已唤醒
+                  callIsListening = true
                   const cleaned = d.text.replace(new RegExp(wakeWord, 'g'), '').trim()
-                  if (cleaned) sendMessage(cleaned)
-                  else sendMessage('你好')
+                  if (cleaned) {
+                    sendMessage(cleaned)
+                    callIsListening = false  // 说完回到监听状态
+                  } else {
+                    addMessage('system', '🔔 已唤醒，请说话...')
+                  }
                 } else if (callIsListening) {
+                  // 已唤醒状态，直接发送
                   sendMessage(d.text)
-                  callIsListening = false
+                  callIsListening = false  // 说完回到监听状态
                 }
               }
             }
