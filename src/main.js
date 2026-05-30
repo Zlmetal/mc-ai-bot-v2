@@ -59,11 +59,28 @@ function syncMindCraftConfig() {
   // 生成 andrew.json（用设置页面的名字和人设）
   const botName = config.bot?.name || 'andrew'
   const botStyle = config.bot?.style || '说话简洁但有温度，偶尔开玩笑，用中文'
+  
+  // 校验 LLM 模型名（防止 TTS 模型名污染）
+  let llmModel = config.llm?.model || 'mimo-v2.5'
+  if (llmModel.includes('tts') || llmModel.includes('TTS') || llmModel.includes('embedding')) {
+    console.warn(`[配置] LLM 模型名异常: ${llmModel}，回退到 mimo-v2.5`)
+    llmModel = 'mimo-v2.5'
+    config.llm.model = llmModel
+    saveConfig(config)
+  }
+  
+  // 校验 Bot 名字（不能是模型名）
+  if (botName === 'mimo' || botName === 'MiMo' || botName.includes('model')) {
+    console.warn(`[配置] Bot 名字异常: ${botName}，回退到 andrew`)
+    config.bot.name = 'andrew'
+    saveConfig(config)
+  }
+  
   const profile = {
     name: botName,
     model: {
       api: 'openai',
-      model: config.llm?.model || 'mimo-v2.5',
+      model: llmModel,
       url: (config.llm?.baseUrl || 'https://api.xiaomimimo.com/v1').replace(/\/+$/, '')
     }
   }
@@ -187,8 +204,10 @@ app.post('/api/config', (req, res) => {
 
     // 重启 MindCraft Agent
     if (connectedToMindCraft && mindcraftSocket) {
-      mindcraftSocket.emit('restart-agent', config.bot?.name || 'andrew')
-      console.log('[配置] 已请求重启 MindCraft Agent')
+      // 获取当前 agent 名字（可能是旧名字）
+      const currentAgentName = Object.keys(agentStates)[0] || config.bot?.name || 'andrew'
+      mindcraftSocket.emit('restart-agent', currentAgentName)
+      console.log('[配置] 已请求重启 MindCraft Agent:', currentAgentName)
     }
 
     res.json({ success: true, message: '配置已保存' })
