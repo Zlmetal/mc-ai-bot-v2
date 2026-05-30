@@ -196,6 +196,23 @@
       </div>
     </div>
 
+    <!-- 唤醒词设置 -->
+    <div class="section">
+      <div class="section-title">🎯 唤醒词（实时语音）</div>
+      <div class="field">
+        <div class="checkbox-row">
+          <input type="checkbox" id="wakeEnabled">
+          <label for="wakeEnabled" style="margin: 0">启用唤醒词</label>
+        </div>
+        <div class="help-text">开启后，实时通话模式下只有说出唤醒词才会触发 AI 响应</div>
+      </div>
+      <div class="field" id="wakeWordField">
+        <label>唤醒词</label>
+        <input type="text" id="wakeWord" placeholder="例如：小智、你好、嘿AI">
+        <div class="help-text">可以是任意中文或英文词，建议 2-4 个字</div>
+      </div>
+    </div>
+
     <!-- 登录设置 -->
     <div class="section">
       <div class="section-title">🔐 登录设置</div>
@@ -260,6 +277,11 @@
       const mode = $('ttsMode').value
       $('edgeSection').style.display = mode === 'edge' ? 'block' : 'none'
       $('mimoSection').style.display = mode === 'mimo' ? 'block' : 'none'
+    })
+
+    // 唤醒词开关
+    $('wakeEnabled').addEventListener('change', () => {
+      $('wakeWordField').style.display = $('wakeEnabled').checked ? 'block' : 'none'
     })
 
     // 获取 TTS 模型列表
@@ -375,6 +397,10 @@
         $('botPersonality').value = config.bot?.personality || ''
         $('botStyle').value = config.bot?.style || ''
         $('webUsername').value = config.web?.username || 'admin'
+        // 唤醒词
+        $('wakeEnabled').checked = config.wake?.enabled || false
+        $('wakeWord').value = config.wake?.word || ''
+        $('wakeWordField').style.display = $('wakeEnabled').checked ? 'block' : 'none'
         // 密码不回显
         const statusEl = $('mindcraftStatus')
         if (config._mindcraft_connected) {
@@ -405,7 +431,8 @@
           mimoVoice: $('ttsMimoVoice').value
         },
         bot: { name: $('botName').value || 'andrew', personality: $('botPersonality').value, style: $('botStyle').value },
-        web: { username: $('webUsername').value || 'admin' }
+        web: { username: $('webUsername').value || 'admin' },
+        wake: { enabled: $('wakeEnabled').checked, word: $('wakeWord').value }
       }
       if (apiKey && !apiKey.includes('...')) config.llm.apiKey = apiKey
       if (webPassword) config.web.password = webPassword
