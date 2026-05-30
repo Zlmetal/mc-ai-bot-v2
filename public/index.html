@@ -224,52 +224,100 @@
       if (text) { sendMessage(text); $('textInput').value = ''; $('textInput').style.height = 'auto'; $('btnSend').disabled = true }
     })
 
-    // ========== 语音输入（服务端 Whisper STT）==========
+    // ========== 语音输入 ==========
     let mediaRecorder = null
     let audioChunks = []
     let isRecording = false
+    let useServerSTT = false  // 是否使用服务端 Whisper
+    let browserRecognition = null  // 浏览器内置语音识别
 
     async function initVoice() {
-      try {
-        const stream = await navigator.mediaDevices.getUserMedia({ audio: true })
-        mediaRecorder = new MediaRecorder(stream, { mimeType: 'audio/webm;codecs=opus' })
-        mediaRecorder.ondataavailable = (e) => { if (e.data.size > 0) audioChunks.push(e.data) }
-        mediaRecorder.onstop = async () => {
-          $('voiceHint').textContent = '识别中...'
-          const audioBlob = new Blob(audioChunks, { type: 'audio/webm' })
-          audioChunks = []
-          if (audioBlob.size < 1000) { $('voiceHint').textContent = '按住说话'; return }
-          try {
-            const resp = await fetch('/api/stt', { method: 'POST', headers: { 'Content-Type': 'audio/webm' }, body: audioBlob })
-            const result = await resp.json()
-            if (result.success && result.text) { sendMessage(result.text) }
-            else { addMessage('system', '识别失败: ' + (result.message || '未识别到内容')) }
-          } catch (e) { addMessage('system', '识别出错') }
-          $('voiceHint').textContent = '按住说话'
+      // 检测是否支持 MediaRecorder（需要 HTTPS）
+      if (location.protocol === 'https:' && navigator.mediaDevices && navigator.mediaDevices.getUserMedia) {
+        try {
+          const stream = await navigator.mediaDevices.getUserMedia({ audio: true })
+          mediaRecorder = new MediaRecorder(stream, { mimeType: 'audio/webm;codecs=opus' })
+          mediaRecorder.ondataavailable = (e) => { if (e.data.size > 0) audioChunks.push(e.data) }
+          mediaRecorder.onstop = async () => {
+            $('voiceHint').textContent = '识别中...'
+            const audioBlob = new Blob(audioChunks, { type: 'audio/webm' })
+            audioChunks = []
+            if (audioBlob.size < 1000) { $('voiceHint').textContent = '按住说话'; return }
+            try {
+              const resp = await fetch('/api/stt', { method: 'POST', headers: { 'Content-Type': 'audio/webm' }, body: audioBlob })
+              const result = await resp.json()
+              if (result.success && result.text) { sendMessage(result.text) }
+              else { addMessage('system', '识别失败: ' + (result.message || '未识别到内容')) }
+            } catch (e) { addMessage('system', '识别出错') }
+            $('voiceHint').textContent = '按住说话'
+          }
+          useServerSTT = true
+          console.log('[Voice] ✅ HTTPS 模式 - 服务端 Whisper STT')
+          return
+        } catch (e) {
+          console.warn('[Voice] MediaRecorder 不可用，降级到 Web Speech API')
         }
-        console.log('[Voice] ✅ 麦克风就绪')
-      } catch (e) {
-        console.error('[Voice] 麦克风获取失败:', e)
-        // 不隐藏按钮，只提示
-        $('voiceHint').textContent = '麦克风不可用，请检查权限'
       }
+
+      // 降级：使用浏览器内置语音识别（HTTP 环境可用）
+      const SR = window.SpeechRecognition || window.webkitSpeechRecognition
+      if (SR) {
+        browserRecognition = new SR()
+        browserRecognition.lang = 'zh-CN'
+        browserRecognition.continuous = false
+        browserRecognition.interimResults = false
+        browserRecognition.onstart = () => {
+          isRecording = true
+          $('btnVoice').classList.add('recording')
+          $('voiceHint').textContent = '正在听...'
+          $('voiceHint').classList.add('recording')
+        }
+        browserRecognition.onresult = (event) => {
+          const result = event.results[event.results.length - 1]
+          if (result.isFinal && result[0].transcript.trim()) {
+            sendMessage(result[0].transcript)
+          }
+        }
+        browserRecognition.onerror = (e) => {
+          console.error('[Voice] 错误:', e.error)
+          if (e.error === 'not-allowed') {
+            $('voiceHint').textContent = '请允许麦克风权限'
+          }
+        }
+        browserRecognition.onend = () => { stopRecording() }
+        console.log('[Voice] ✅ HTTP 模式 - 浏览器内置语音识别')
+        return
+      }
+
+      // 都不支持
+      console.warn('[Voice] 无可用语音识别方案')
+      $('voiceHint').textContent = '语音不可用'
     }
 
     function startRecording() {
-      if (!mediaRecorder || isRecording) return
-      isRecording = true
-      audioChunks = []
-      mediaRecorder.start(100)
-      $('btnVoice').classList.add('recording')
-      $('voiceHint').textContent = '正在录音...'
-      $('voiceHint').classList.add('recording')
+      if (isRecording) return
+      if (useServerSTT && mediaRecorder) {
+        isRecording = true
+        audioChunks = []
+        mediaRecorder.start(100)
+        $('btnVoice').classList.add('recording')
+        $('voiceHint').textContent = '正在录音...'
+        $('voiceHint').classList.add('recording')
+      } else if (browserRecognition) {
+        try { browserRecognition.start() } catch (e) {}
+      }
     }
 
     function stopRecording() {
-      if (!mediaRecorder || !isRecording) return
+      if (!isRecording) return
       isRecording = false
-      mediaRecorder.stop()
+      if (useServerSTT && mediaRecorder) {
+        mediaRecorder.stop()
+      } else if (browserRecognition) {
+        try { browserRecognition.stop() } catch (e) {}
+      }
       $('btnVoice').classList.remove('recording')
+      $('voiceHint').textContent = '按住说话'
       $('voiceHint').classList.remove('recording')
     }
 
