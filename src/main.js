@@ -325,15 +325,16 @@ app.get('/api/mindcraft-settings', (req, res) => {
     if (!fs.existsSync(settingsPath)) {
       return res.json({ success: false, message: 'settings.js 不存在' })
     }
-    const content = fs.readFileSync(settingsPath, 'utf-8')
-    // 从 JS 模块中提取 settings 对象
-    const match = content.match(/const settings = (\{[\s\S]*?\})\s*export/s)
-    if (!match) {
+    let content = fs.readFileSync(settingsPath, 'utf-8')
+    // 去掉 BOM 和注释
+    content = content.replace(/^\uFEFF/, '').replace(/\/\/.*$/gm, '')
+    // 找到 settings 对象的起止位置
+    const start = content.indexOf('{')
+    const end = content.lastIndexOf('}')
+    if (start === -1 || end === -1 || end <= start) {
       return res.json({ success: false, message: '无法解析 settings.js' })
     }
-    // 用 Function 构造器安全解析
-    const settingsStr = match[1]
-      .replace(/\/\/.*$/gm, '')  // 去掉行注释
+    const settingsStr = content.substring(start, end + 1)
       .replace(/,\s*}/g, '}')    // 去掉尾逗号
     const settings = new Function('return ' + settingsStr)()
     res.json({ success: true, settings })
