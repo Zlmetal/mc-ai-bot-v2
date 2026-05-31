@@ -345,13 +345,26 @@ app.get('/api/mindcraft-settings', (req, res) => {
 
 app.post('/api/mindcraft-settings', (req, res) => {
   try {
-    const settings = req.body.settings
-    if (!settings || typeof settings !== 'object') {
+    const newSettings = req.body.settings
+    if (!newSettings || typeof newSettings !== 'object') {
       return res.json({ success: false, message: '无效的设置数据' })
     }
     const settingsPath = path.join(__dirname, '..', 'mindcraft', 'settings.js')
+    // 读取现有 settings 并合并（保留 profiles 等表单中没有的字段）
+    let existing = {}
+    if (fs.existsSync(settingsPath)) {
+      try {
+        let raw = fs.readFileSync(settingsPath, 'utf-8').replace(/^\uFEFF/, '').replace(/\/\/.*$/gm, '')
+        const start = raw.indexOf('{')
+        const end = raw.lastIndexOf('}')
+        if (start !== -1 && end > start) {
+          existing = new Function('return ' + raw.substring(start, end + 1).replace(/,\s*}/g, '}'))()
+        }
+      } catch (e) { /* 解析失败用空对象 */ }
+    }
+    const merged = { ...existing, ...newSettings }
     // 生成 settings.js 内容
-    const content = `const settings = ${JSON.stringify(settings, null, 4)}\nexport default settings\n`
+    const content = `const settings = ${JSON.stringify(merged, null, 4)}\nexport default settings\n`
     fs.writeFileSync(settingsPath, content, 'utf-8')
     // 备份到 data 目录
     try {
