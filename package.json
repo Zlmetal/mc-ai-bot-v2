@@ -1,6 +1,6 @@
 {
   "name": "mc-ai-bot-v2",
-  "version": "1.0.0",
+  "version": "1.0.1",
   "description": "Minecraft AI Player - 基于 MindCraft + Web界面 + 记忆系统 + 语音交互",
   "type": "module",
   "main": "src/main.js",
