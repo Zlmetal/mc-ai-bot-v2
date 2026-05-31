@@ -118,9 +118,26 @@ SETTINGSEOF
     echo "[启动] 使用已有 settings.js"
   fi
 
-  # 确保 profiles 字段指向正确的 bot profile
+  # 确保关键字段正确（profiles、host、port）
   if [ -f /app/mindcraft/settings.js ]; then
-    sed -i "s|\"profiles\":\s*\[[^]]*\]|\"profiles\": [\"./profiles/$BOT_NAME.json\"]|g" /app/mindcraft/settings.js
+    python3 -c "
+import json, re
+with open('/app/mindcraft/settings.js', 'r') as f:
+    content = f.read()
+# 提取 settings 对象
+start = content.find('{')
+end = content.rfind('}')
+if start != -1 and end > start:
+    obj = json.loads(content[start:end+1])
+    obj['profiles'] = ['./profiles/$BOT_NAME.json']
+    obj['host'] = '$MC_HOST'
+    obj['port'] = $MC_PORT
+    obj['auth'] = '$MC_AUTH'
+    new_content = 'const settings = ' + json.dumps(obj, indent=4, ensure_ascii=False) + '\nexport default settings\n'
+    with open('/app/mindcraft/settings.js', 'w') as f:
+        f.write(new_content)
+"
+    echo "[启动] settings.js 关键字段已修正"
   fi
 }
 
