@@ -9,7 +9,6 @@ services:
     volumes:
       - ./data:/app/data
       - ./data/agents:/app/mindcraft/agents
-      - ./data/bots:/app/mindcraft/bots
     environment:
       - TZ=Asia/Shanghai
       - MC_HOST=你的MC服务器内网IP
