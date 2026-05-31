@@ -41,6 +41,22 @@ backup_profile() {
   fi
 }
 
+# 从备份恢复 bots 目录（记忆等）
+restore_bots() {
+  if [ -d /app/data/bots ]; then
+    cp -r /app/data/bots/* /app/mindcraft/bots/ 2>/dev/null
+    echo "[启动] 从备份恢复 bots 目录"
+  fi
+}
+
+# 备份 bots 目录到 data
+backup_bots() {
+  mkdir -p /app/data/bots
+  if [ -d /app/mindcraft/bots ]; then
+    cp -r /app/mindcraft/bots/* /app/data/bots/ 2>/dev/null
+  fi
+}
+
 # 生成 MindCraft 配置
 generate_settings() {
   # 重新读取最新的 bot 名字
@@ -51,8 +67,9 @@ generate_settings() {
     fi
   fi
 
-  # 先尝试从备份恢复 profile
+  # 先尝试从备份恢复
   restore_profile "$BOT_NAME"
+  restore_bots
 
   # 仅当 profile 不存在时才生成
   if [ ! -f "/app/mindcraft/profiles/$BOT_NAME.json" ]; then
@@ -196,8 +213,15 @@ WEB_PID=$!
 echo "[启动] 所有服务已启动"
 
 # 监听重启标记
+BACKUP_COUNTER=0
 while true; do
   sleep 3
+  BACKUP_COUNTER=$((BACKUP_COUNTER + 1))
+  # 每 60 秒备份一次 bots 目录（记忆）
+  if [ $BACKUP_COUNTER -ge 20 ]; then
+    backup_bots
+    BACKUP_COUNTER=0
+  fi
   if [ -f /app/data/.restart ]; then
     rm -f /app/data/.restart
     echo ""
