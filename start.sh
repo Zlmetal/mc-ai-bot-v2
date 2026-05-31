@@ -117,6 +117,11 @@ SETTINGSEOF
   else
     echo "[启动] 使用已有 settings.js"
   fi
+
+  # 确保 profiles 字段指向正确的 bot profile
+  if [ -f /app/mindcraft/settings.js ]; then
+    sed -i "s|\"profiles\":\s*\[[^]]*\]|\"profiles\": [\"./profiles/$BOT_NAME.json\"]|g" /app/mindcraft/settings.js
+  fi
 }
 
 generate_settings
