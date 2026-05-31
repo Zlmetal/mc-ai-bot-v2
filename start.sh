@@ -33,7 +33,7 @@ generate_settings() {
   # 确保 profile 文件存在
   mkdir -p /app/mindcraft/profiles
   if [ ! -f "/app/mindcraft/profiles/$BOT_NAME.json" ]; then
-    echo "{\"name\":\"$BOT_NAME\",\"model\":{\"api\":\"openai\",\"model\":\"mimo-v2.5\",\"url\":\"https://api.xiaomimimo.com/v1\"}}" > "/app/mindcraft/profiles/$BOT_NAME.json"
+    echo "{\"name\":\"$BOT_NAME\",\"model\":{\"api\":\"openai\",\"model\":\"mimo-v2.5\",\"url\":\"https://api.xiaomimimo.com/v1\"},\"vision_model\":{\"api\":\"openai\",\"model\":\"mimo-v2.5\",\"url\":\"https://api.xiaomimimo.com/v1\"}}" > "/app/mindcraft/profiles/$BOT_NAME.json"
     echo "[启动] 创建 profile: $BOT_NAME.json"
   fi
 
