@@ -64,6 +64,12 @@ generate_settings() {
   # 备份 profile
   backup_profile "$BOT_NAME"
 
+  # 从备份恢复 settings.js
+  if [ -f /app/data/mindcraft-settings.js ] && [ ! -f /app/mindcraft/settings.js ]; then
+    cp /app/data/mindcraft-settings.js /app/mindcraft/settings.js
+    echo "[启动] 从备份恢复 settings.js"
+  fi
+
   # 仅当 settings.js 不存在时才生成
   if [ ! -f /app/mindcraft/settings.js ]; then
     cat > /app/mindcraft/settings.js << 'SETTINGSEOF'
