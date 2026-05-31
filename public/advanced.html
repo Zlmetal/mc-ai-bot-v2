@@ -1,0 +1,268 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+  <title>高级设置 - MC AI Bot</title>
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; background: #0a0a0a; color: #e0e0e0; min-height: 100vh; padding-bottom: 80px; }
+    .header { padding: 14px 16px; background: #1a1a2e; border-bottom: 1px solid #333; display: flex; align-items: center; gap: 12px; position: sticky; top: 0; z-index: 10; }
+    .back-btn { color: #888; text-decoration: none; font-size: 18px; }
+    .header h1 { font-size: 16px; font-weight: 600; }
+    .container { max-width: 600px; margin: 0 auto; padding: 16px; }
+    .section { background: #1e1e2e; border-radius: 10px; border: 1px solid #333; margin-bottom: 12px; overflow: hidden; }
+    .section-title { font-weight: 600; font-size: 14px; color: #4caf50; padding: 12px 14px; border-bottom: 1px solid #333; background: rgba(76,175,80,0.05); }
+    .field { padding: 10px 14px; border-bottom: 1px solid #252535; }
+    .field:last-child { border-bottom: none; }
+    .field label { display: block; font-size: 13px; color: #aaa; margin-bottom: 4px; font-weight: 500; }
+    .field input, .field select { width: 100%; padding: 9px 12px; background: #0d0d1a; border: 1px solid #333; border-radius: 6px; color: white; font-size: 14px; outline: none; }
+    .field input:focus, .field select:focus { border-color: #2563eb; }
+    .field input[type="checkbox"] { width: auto; margin-right: 6px; }
+    .checkbox-row { display: flex; align-items: center; gap: 6px; padding: 4px 0; }
+    .help-text { font-size: 11px; color: #666; margin-top: 3px; line-height: 1.4; }
+    .btn-save { position: fixed; bottom: 16px; left: 50%; transform: translateX(-50%); padding: 12px 40px; background: #2563eb; color: white; border: none; border-radius: 8px; font-size: 15px; cursor: pointer; z-index: 10; box-shadow: 0 4px 12px rgba(37,99,235,0.4); }
+    .btn-save:active { transform: translateX(-50%) scale(0.96); }
+    .btn-save:disabled { background: #333; box-shadow: none; }
+    .message { padding: 10px 14px; border-radius: 6px; margin-bottom: 12px; font-size: 13px; }
+    .message.success { background: rgba(76,175,80,0.15); color: #4caf50; }
+    .message.error { background: rgba(244,67,54,0.15); color: #f44336; }
+    .message.info { background: rgba(33,150,243,0.15); color: #2196f3; }
+    .loading { text-align: center; padding: 40px; color: #666; }
+    .field-json textarea { width: 100%; min-height: 60px; background: #0d0d1a; border: 1px solid #333; border-radius: 6px; color: white; font-size: 13px; font-family: 'Consolas', monospace; padding: 8px; outline: none; resize: vertical; }
+    .field-json textarea:focus { border-color: #2563eb; }
+  </style>
+</head>
+<body>
+  <div class="header">
+    <a href="/settings.html" class="back-btn">←</a>
+    <h1>⚙️ 高级设置 (settings.js)</h1>
+  </div>
+
+  <div class="container" id="container">
+    <div class="loading">加载中...</div>
+  </div>
+
+  <button class="btn-save" id="btnSave" disabled>保存并重启 MindCraft</button>
+
+  <script>
+    const $ = id => document.getElementById(id)
+
+    // settings.js 字段定义：{ key, label, type, help, default, options? }
+    const FIELDS = [
+      // === 连接设置 ===
+      { section: '🔗 连接设置' },
+      { key: 'minecraft_version', label: 'Minecraft 版本', type: 'text', default: 'auto', help: '游戏版本号，填 "auto" 自动检测，或指定如 "1.21.6"' },
+      { key: 'host', label: 'MC 服务器地址', type: 'text', default: 'host.docker.internal', help: 'Minecraft 服务器 IP 或域名。本地测试填 "localhost"，Docker 内填 "host.docker.internal"' },
+      { key: 'port', label: 'MC 服务器端口', type: 'number', default: 55916, help: 'Minecraft 服务器端口号，填 -1 自动扫描开放端口' },
+      { key: 'auth', label: '认证方式', type: 'select', default: 'offline', options: ['offline', 'microsoft'], help: '"offline" 离线模式（不需要微软账号），"microsoft" 正版登录' },
+
+      // === MindServer 设置 ===
+      { section: '🖥️ MindServer 设置' },
+      { key: 'mindserver_port', label: 'MindServer 端口', type: 'number', default: 8080, help: 'MindCraft 管理服务的端口，通常不需要修改' },
+      { key: 'auto_open_ui', label: '自动打开 UI', type: 'checkbox', default: true, help: '启动时是否自动在浏览器中打开 MindCraft 控制台' },
+
+      // === Bot 配置 ===
+      { section: '🤖 Bot 配置' },
+      { key: 'base_profile', label: '基础人设', type: 'select', default: 'assistant', options: ['assistant', 'survival', 'creative', 'god_mode'], help: 'assistant=助手模式，survival=生存模式，creative=创造模式，god_mode=上帝模式' },
+      { key: 'load_memory', label: '加载记忆', type: 'checkbox', default: false, help: '是否加载上次会话的记忆（聊天记录、学到的知识等）' },
+      { key: 'init_message', label: '启动问候语', type: 'text', default: '大家好！我是andrew', help: 'Bot 加入游戏时发送的第一条消息' },
+      { key: 'only_chat_with', label: '只与指定玩家聊天', type: 'json', default: '[]', help: '限制 Bot 只听/回复指定玩家。留空 [] 表示对所有人可见。如 ["玩家A","玩家B"]' },
+
+      // === 语音设置 ===
+      { section: '🔊 语音设置' },
+      { key: 'speak', label: '启用语音', type: 'checkbox', default: false, help: '是否让 Bot 通过 TTS 说话。需要在 profile 中配置 speak_model' },
+
+      // === 聊天设置 ===
+      { section: '💬 聊天设置' },
+      { key: 'chat_ingame', label: '游戏内显示聊天', type: 'checkbox', default: true, help: 'Bot 的回复是否显示在 Minecraft 聊天栏中' },
+      { key: 'language', label: '语言', type: 'text', default: 'zh-CN', help: '翻译目标语言代码。zh-CN=中文，en=英文。Bot 会自动翻译成此语言' },
+      { key: 'narrate_behavior', label: '播报行为', type: 'checkbox', default: true, help: 'Bot 执行简单操作时自动聊天（如"正在捡起物品！"）' },
+      { key: 'chat_bot_messages', label: 'Bot 间聊天', type: 'checkbox', default: true, help: '多个 Bot 之间是否互相聊天' },
+
+      // === 安全与代码 ===
+      { section: '🛡️ 安全与代码执行' },
+      { key: 'allow_insecure_coding', label: '允许执行代码', type: 'checkbox', default: false, help: '⚠️ 危险：允许 LLM 在你的电脑上写并执行代码。仅在可信环境下开启' },
+      { key: 'allow_vision', label: '允许视觉功能', type: 'checkbox', default: false, help: '允许视觉模型分析游戏截图。需要在 profile 中配置 vision_model' },
+      { key: 'code_timeout_mins', label: '代码超时（分钟）', type: 'number', default: -1, help: '代码最长运行时间（分钟）。-1 表示无限制' },
+      { key: 'blocked_actions', label: '禁用的命令', type: 'json', default: '["!checkBlueprint","!checkBlueprintLevel","!getBlueprint","!getBlueprintLevel"]', help: '禁用的 Bot 命令列表，如 ["!setMode"]' },
+
+      // === 模型提示设置 ===
+      { section: '📊 模型提示设置' },
+      { key: 'relevant_docs_count', label: '相关文档数量', type: 'number', default: 5, help: '为模型选取的相关代码文档数量。-1 表示全部' },
+      { key: 'max_messages', label: '最大消息数', type: 'number', default: 15, help: '上下文中保留的最大消息数量' },
+      { key: 'num_examples', label: '示例数量', type: 'number', default: 2, help: '提供给模型的示例对话数量' },
+      { key: 'max_commands', label: '最大命令数', type: 'number', default: -1, help: '单次回复中可使用的最大命令数。-1 表示无限制' },
+      { key: 'show_command_syntax', label: '命令语法显示', type: 'select', default: 'full', options: ['full', 'shortened', 'none'], help: 'full=完整语法，shortened=简短，none=不显示' },
+
+      // === 渲染设置 ===
+      { section: '🎨 渲染设置' },
+      { key: 'render_bot_view', label: '渲染 Bot 视角', type: 'checkbox', default: false, help: '在浏览器中显示 Bot 的第一人称视角（localhost:3000）' },
+
+      // === 超时与调试 ===
+      { section: '⏱️ 超时与调试' },
+      { key: 'spawn_timeout', label: '生成超时（秒）', type: 'number', default: 60, help: 'Bot 生成的超时时间（秒）。服务器慢时可增大此值' },
+      { key: 'block_place_delay', label: '放置方块延迟（毫秒）', type: 'number', default: 0, help: '连续放置方块之间的延迟（毫秒），防止被服务器反作弊踢出' },
+      { key: 'log_all_prompts', label: '记录所有提示词', type: 'checkbox', default: false, help: '是否将所有发送给模型的提示词记录到文件（调试用）' },
+    ]
+
+    let currentSettings = {}
+
+    function showMessage(text, type) {
+      const existing = document.querySelector('.message')
+      if (existing) existing.remove()
+      const msg = document.createElement('div')
+      msg.className = `message ${type}`
+      msg.textContent = text
+      $('container').insertBefore(msg, $('container').firstChild)
+      setTimeout(() => msg.remove(), 4000)
+    }
+
+    function renderForm() {
+      const container = $('container')
+      container.innerHTML = ''
+      let currentSection = null
+
+      for (const field of FIELDS) {
+        if (field.section) {
+          currentSection = document.createElement('div')
+          currentSection.className = 'section'
+          const title = document.createElement('div')
+          title.className = 'section-title'
+          title.textContent = field.section
+          currentSection.appendChild(title)
+          container.appendChild(currentSection)
+          continue
+        }
+
+        const div = document.createElement('div')
+        div.className = field.type === 'json' ? 'field field-json' : 'field'
+        const label = document.createElement('label')
+        label.textContent = field.label
+        label.htmlFor = 'f_' + field.key
+        div.appendChild(label)
+
+        const currentValue = currentSettings[field.key] !== undefined ? currentSettings[field.key] : field.default
+
+        if (field.type === 'checkbox') {
+          const row = document.createElement('div')
+          row.className = 'checkbox-row'
+          const input = document.createElement('input')
+          input.type = 'checkbox'
+          input.id = 'f_' + field.key
+          input.checked = !!currentValue
+          row.appendChild(input)
+          const span = document.createElement('span')
+          span.textContent = currentValue ? '开启' : '关闭'
+          span.style.fontSize = '13px'
+          input.addEventListener('change', () => { span.textContent = input.checked ? '开启' : '关闭' })
+          row.appendChild(span)
+          div.appendChild(row)
+        } else if (field.type === 'select') {
+          const select = document.createElement('select')
+          select.id = 'f_' + field.key
+          for (const opt of field.options) {
+            const option = document.createElement('option')
+            option.value = opt
+            option.textContent = opt
+            if (String(currentValue) === String(opt)) option.selected = true
+            select.appendChild(option)
+          }
+          div.appendChild(select)
+        } else if (field.type === 'json') {
+          const textarea = document.createElement('textarea')
+          textarea.id = 'f_' + field.key
+          textarea.value = typeof currentValue === 'string' ? currentValue : JSON.stringify(currentValue)
+          div.appendChild(textarea)
+        } else {
+          const input = document.createElement('input')
+          input.type = field.type === 'number' ? 'number' : 'text'
+          input.id = 'f_' + field.key
+          input.value = currentValue !== undefined && currentValue !== null ? currentValue : ''
+          if (field.type === 'number') input.step = 'any'
+          div.appendChild(input)
+        }
+
+        const help = document.createElement('div')
+        help.className = 'help-text'
+        help.textContent = field.help
+        div.appendChild(help)
+
+        if (currentSection) currentSection.appendChild(div)
+      }
+    }
+
+    function collectSettings() {
+      const settings = {}
+      for (const field of FIELDS) {
+        if (field.section) continue
+        const el = $('f_' + field.key)
+        if (!el) continue
+        if (field.type === 'checkbox') {
+          settings[field.key] = el.checked
+        } else if (field.type === 'number') {
+          settings[field.key] = el.value === '' ? field.default : Number(el.value)
+        } else if (field.type === 'json') {
+          try {
+            settings[field.key] = JSON.parse(el.value)
+          } catch (e) {
+            showMessage(`"${field.label}" 的 JSON 格式不正确: ${e.message}`, 'error')
+            return null
+          }
+        } else {
+          settings[field.key] = el.value
+        }
+      }
+      return settings
+    }
+
+    async function loadSettings() {
+      try {
+        const r = await fetch('/api/mindcraft-settings')
+        const d = await r.json()
+        if (d.success) {
+          currentSettings = d.settings
+          renderForm()
+          $('btnSave').disabled = false
+        } else {
+          $('container').innerHTML = `<div class="loading">加载失败: ${d.message}</div>`
+        }
+      } catch (e) {
+        $('container').innerHTML = `<div class="loading">加载失败: ${e.message}</div>`
+      }
+    }
+
+    $('btnSave').addEventListener('click', async () => {
+      const settings = collectSettings()
+      if (!settings) return
+      $('btnSave').disabled = true
+      $('btnSave').textContent = '保存中...'
+      try {
+        const r = await fetch('/api/mindcraft-settings', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ settings })
+        })
+        const d = await r.json()
+        if (d.success) {
+          showMessage('✅ 已保存，MindCraft 正在重启...', 'success')
+          setTimeout(() => {
+            $('btnSave').disabled = false
+            $('btnSave').textContent = '保存并重启 MindCraft'
+          }, 3000)
+        } else {
+          showMessage('保存失败: ' + d.message, 'error')
+          $('btnSave').disabled = false
+          $('btnSave').textContent = '保存并重启 MindCraft'
+        }
+      } catch (e) {
+        showMessage('保存失败: ' + e.message, 'error')
+        $('btnSave').disabled = false
+        $('btnSave').textContent = '保存并重启 MindCraft'
+      }
+    })
+
+    loadSettings()
+  </script>
+</body>
+</html>
