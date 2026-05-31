@@ -41,8 +41,9 @@ backup_profile() {
   fi
 }
 
-# 从备份恢复 bots 目录（记忆等）
+# 从备份恢复 bots 目录（记忆等，备份存在就覆盖）
 restore_bots() {
+  mkdir -p /app/mindcraft/bots
   if [ -d /app/data/bots ]; then
     cp -r /app/data/bots/* /app/mindcraft/bots/ 2>/dev/null
     echo "[启动] 从备份恢复 bots 目录"
@@ -217,8 +218,8 @@ BACKUP_COUNTER=0
 while true; do
   sleep 3
   BACKUP_COUNTER=$((BACKUP_COUNTER + 1))
-  # 每 60 秒备份一次 bots 目录（记忆）
-  if [ $BACKUP_COUNTER -ge 20 ]; then
+  # 每 10 秒备份一次 bots 目录（记忆）
+  if [ $BACKUP_COUNTER -ge 3 ]; then
     backup_bots
     BACKUP_COUNTER=0
   fi
