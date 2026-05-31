@@ -75,35 +75,38 @@ function syncMindCraftConfig() {
   
   const profilePath = path.join(profilesDir, `${botName}.json`)
   
-  // 仅当 profile 不存在时才创建（保留手动修改如 vision_model）
+  // conversing 内容（性格+风格）
+  const conversingText = `你是 ${botName}，性格特征：${personality}。说话风格：${style}。\n\n` +
+    `You are an AI Minecraft bot named $NAME that can converse with players, see, move, mine, build, and interact with the world by using commands.\n` +
+    `$SELF_PROMPT Be a friendly, casual, effective, and efficient robot. Be very brief in your responses, don't apologize constantly, don't give instructions or make lists unless asked, and don't refuse requests. Don't pretend to act, use commands immediately when requested. Do NOT say this: 'Sure, I've stopped. *stops*', instead say this: 'Sure, I'll stop. !stop'. Respond only as $NAME, never output '(FROM OTHER BOT)' or pretend to be someone else. If you have nothing to say or do, respond with an just a tab '\t'. This is extremely important to me, take a deep breath and have fun :)\nSummarized memory:'$MEMORY'\n$STATS\n$INVENTORY\n$COMMAND_DOCS\n$EXAMPLES\nConversation Begin:`
+
   if (!fs.existsSync(profilePath)) {
+    // profile 不存在，创建完整 profile
     const profile = {
       name: botName,
-      model: {
-        api: 'openai',
-        model: llmModel,
-        url: (config.llm?.baseUrl || 'https://api.xiaomimimo.com/v1').replace(/\/+$/, '')
-      },
-      vision_model: {
-        api: 'openai',
-        model: llmModel,
-        url: (config.llm?.baseUrl || 'https://api.xiaomimimo.com/v1').replace(/\/+$/, '')
-      },
-      conversing: `你是 ${botName}，性格特征：${personality}。说话风格：${style}。\n\n` +
-        `You are an AI Minecraft bot named $NAME that can converse with players, see, move, mine, build, and interact with the world by using commands.\n` +
-        `$SELF_PROMPT Be a friendly, casual, effective, and efficient robot. Be very brief in your responses, don't apologize constantly, don't give instructions or make lists unless asked, and don't refuse requests. Don't pretend to act, use commands immediately when requested. Do NOT say this: 'Sure, I've stopped. *stops*', instead say this: 'Sure, I'll stop. !stop'. Respond only as $NAME, never output '(FROM OTHER BOT)' or pretend to be someone else. If you have nothing to say or do, respond with an just a tab '\t'. This is extremely important to me, take a deep breath and have fun :)\nSummarized memory:'$MEMORY'\n$STATS\n$INVENTORY\n$COMMAND_DOCS\n$EXAMPLES\nConversation Begin:`
+      model: { api: 'openai', model: llmModel, url: (config.llm?.baseUrl || 'https://api.xiaomimimo.com/v1').replace(/\/+$/, '') },
+      vision_model: { api: 'openai', model: llmModel, url: (config.llm?.baseUrl || 'https://api.xiaomimimo.com/v1').replace(/\/+$/, '') },
+      conversing: conversingText
     }
     fs.writeFileSync(profilePath, JSON.stringify(profile, null, 2))
     console.log(`[配置] 创建 profile: ${botName}.json`)
-    // 备份到 data 目录
-    try {
-      const backupDir = path.join(__dirname, '..', 'data', 'profiles')
-      if (!fs.existsSync(backupDir)) fs.mkdirSync(backupDir, { recursive: true })
-      fs.writeFileSync(path.join(backupDir, `${botName}.json`), JSON.stringify(profile, null, 2))
-    } catch (e) { /* 忽略备份失败 */ }
   } else {
-    console.log(`[配置] 使用已有 profile: ${botName}.json`)
+    // profile 已存在，只更新 conversing（保留 vision_model 等手动配置）
+    try {
+      const existing = JSON.parse(fs.readFileSync(profilePath, 'utf-8'))
+      existing.conversing = conversingText
+      fs.writeFileSync(profilePath, JSON.stringify(existing, null, 2))
+      console.log(`[配置] 更新 profile conversing: ${botName}.json`)
+    } catch (e) {
+      console.error(`[配置] 更新 profile 失败:`, e.message)
+    }
   }
+  // 备份到 data 目录
+  try {
+    const backupDir = path.join(__dirname, '..', 'data', 'profiles')
+    if (!fs.existsSync(backupDir)) fs.mkdirSync(backupDir, { recursive: true })
+    fs.copyFileSync(profilePath, path.join(backupDir, `${botName}.json`))
+  } catch (e) { /* 忽略备份失败 */ }
 
   // 同步 API Key
   const apiKey = config.llm?.apiKey
