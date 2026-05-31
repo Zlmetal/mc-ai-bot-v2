@@ -58,7 +58,8 @@ function syncMindCraftConfig() {
   if (!fs.existsSync(mcDir)) return
 
   const botName = config.bot?.name || 'andrew'
-  const botStyle = config.bot?.style || '说话简洁但有温度，偶尔开玩笑，用中文'
+  const personality = config.bot?.personality || '勤劳、好奇、有点话多、喜欢探索'
+  const style = config.bot?.style || '说话简洁但有温度，偶尔开玩笑，用中文'
   
   // 校验 LLM 模型名（防止 TTS 模型名污染）
   let llmModel = config.llm?.model || 'mimo-v2.5'
@@ -69,18 +70,34 @@ function syncMindCraftConfig() {
     saveConfig(config)
   }
   
-  // 生成 bot profile 文件
-  const profile = {
-    name: botName,
-    model: {
-      api: 'openai',
-      model: llmModel,
-      url: (config.llm?.baseUrl || 'https://api.xiaomimimo.com/v1').replace(/\/+$/, '')
-    }
-  }
   const profilesDir = path.join(mcDir, 'profiles')
   if (!fs.existsSync(profilesDir)) fs.mkdirSync(profilesDir, { recursive: true })
-  fs.writeFileSync(path.join(profilesDir, `${botName}.json`), JSON.stringify(profile, null, 2))
+  
+  const profilePath = path.join(profilesDir, `${botName}.json`)
+  
+  // 仅当 profile 不存在时才创建（保留手动修改如 vision_model）
+  if (!fs.existsSync(profilePath)) {
+    const profile = {
+      name: botName,
+      model: {
+        api: 'openai',
+        model: llmModel,
+        url: (config.llm?.baseUrl || 'https://api.xiaomimimo.com/v1').replace(/\/+$/, '')
+      },
+      vision_model: {
+        api: 'openai',
+        model: llmModel,
+        url: (config.llm?.baseUrl || 'https://api.xiaomimimo.com/v1').replace(/\/+$/, '')
+      },
+      conversing: `你是 ${botName}，性格特征：${personality}。说话风格：${style}。\n\n` +
+        `You are an AI Minecraft bot named $NAME that can converse with players, see, move, mine, build, and interact with the world by using commands.\n` +
+        `$SELF_PROMPT Be a friendly, casual, effective, and efficient robot. Be very brief in your responses, don't apologize constantly, don't give instructions or make lists unless asked, and don't refuse requests. Don't pretend to act, use commands immediately when requested. Do NOT say this: 'Sure, I've stopped. *stops*', instead say this: 'Sure, I'll stop. !stop'. Respond only as $NAME, never output '(FROM OTHER BOT)' or pretend to be someone else. If you have nothing to say or do, respond with an just a tab '\t'. This is extremely important to me, take a deep breath and have fun :)\nSummarized memory:'$MEMORY'\n$STATS\n$INVENTORY\n$COMMAND_DOCS\n$EXAMPLES\nConversation Begin:`
+    }
+    fs.writeFileSync(profilePath, JSON.stringify(profile, null, 2))
+    console.log(`[配置] 创建 profile: ${botName}.json`)
+  } else {
+    console.log(`[配置] 使用已有 profile: ${botName}.json`)
+  }
 
   // 同步 API Key
   const apiKey = config.llm?.apiKey
