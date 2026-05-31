@@ -8,7 +8,6 @@ services:
       - "8080:8080"
     volumes:
       - ./data:/app/data
-      - ./data/mindcraft-settings.js:/app/mindcraft/settings.js
       - ./data/agents:/app/mindcraft/agents
     environment:
       - TZ=Asia/Shanghai
