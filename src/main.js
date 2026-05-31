@@ -440,15 +440,35 @@ wss.on('connection', (ws) => {
         // 转发给 MindCraft - 使用实际在线的 agent 名字
         const agents = Object.keys(agentStates)
         const botName = agents[0] || config.bot?.name || 'andrew'
+        const playerName = msg.playerName || 'WEB'
         if (connectedToMindCraft && mindcraftSocket) {
           memory.addToHistory('web-user', 'user', msg.text)
-          console.log(`[Web] 发送消息给 ${botName}: ${msg.text}`)
+          console.log(`[Web] ${playerName} 发送消息给 ${botName}: ${msg.text}`)
           mindcraftSocket.emit('send-message', botName, {
             message: msg.text,
-            from: 'WEB'
+            from: playerName
           })
         } else {
           ws.send(JSON.stringify({ type: 'text', text: '未连接到 MindCraft，请等待...' }))
+        }
+      }
+
+      // 获取在线玩家列表
+      if (msg.type === 'get-players') {
+        if (connectedToMindCraft && mindcraftSocket) {
+          try {
+            const resp = await fetch(`http://localhost:8080/status`)
+            const data = await resp.json()
+            if (data.players && Array.isArray(data.players)) {
+              ws.send(JSON.stringify({ type: 'players', players: data.players }))
+            } else {
+              ws.send(JSON.stringify({ type: 'players', players: [] }))
+            }
+          } catch (e) {
+            ws.send(JSON.stringify({ type: 'players', players: [] }))
+          }
+        } else {
+          ws.send(JSON.stringify({ type: 'players', players: [] }))
         }
       }
     } catch (err) {
