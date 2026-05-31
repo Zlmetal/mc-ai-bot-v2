@@ -352,6 +352,10 @@ app.post('/api/mindcraft-settings', (req, res) => {
     // 生成 settings.js 内容
     const content = `const settings = ${JSON.stringify(settings, null, 4)}\nexport default settings\n`
     fs.writeFileSync(settingsPath, content, 'utf-8')
+    // 备份到 data 目录
+    try {
+      fs.writeFileSync(path.join(__dirname, '..', 'data', 'mindcraft-settings.js'), content, 'utf-8')
+    } catch (e) { /* 忽略备份失败 */ }
     console.log('[高级设置] settings.js 已更新')
     // 写入重启标记
     const restartFile = path.join(__dirname, '..', 'data', '.restart')
