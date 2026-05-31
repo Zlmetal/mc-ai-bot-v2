@@ -95,6 +95,12 @@ function syncMindCraftConfig() {
     }
     fs.writeFileSync(profilePath, JSON.stringify(profile, null, 2))
     console.log(`[配置] 创建 profile: ${botName}.json`)
+    // 备份到 data 目录
+    try {
+      const backupDir = path.join(__dirname, '..', 'data', 'profiles')
+      if (!fs.existsSync(backupDir)) fs.mkdirSync(backupDir, { recursive: true })
+      fs.writeFileSync(path.join(backupDir, `${botName}.json`), JSON.stringify(profile, null, 2))
+    } catch (e) { /* 忽略备份失败 */ }
   } else {
     console.log(`[配置] 使用已有 profile: ${botName}.json`)
   }
