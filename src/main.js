@@ -294,6 +294,52 @@ app.post('/api/config', (req, res) => {
   }
 })
 
+// ========== 高级设置 API (settings.js) ==========
+
+app.get('/api/mindcraft-settings', (req, res) => {
+  try {
+    const settingsPath = path.join(__dirname, '..', 'mindcraft', 'settings.js')
+    if (!fs.existsSync(settingsPath)) {
+      return res.json({ success: false, message: 'settings.js 不存在' })
+    }
+    const content = fs.readFileSync(settingsPath, 'utf-8')
+    // 从 JS 模块中提取 settings 对象
+    const match = content.match(/const settings = (\{[\s\S]*?\})\s*export/s)
+    if (!match) {
+      return res.json({ success: false, message: '无法解析 settings.js' })
+    }
+    // 用 Function 构造器安全解析
+    const settingsStr = match[1]
+      .replace(/\/\/.*$/gm, '')  // 去掉行注释
+      .replace(/,\s*}/g, '}')    // 去掉尾逗号
+    const settings = new Function('return ' + settingsStr)()
+    res.json({ success: true, settings })
+  } catch (err) {
+    res.json({ success: false, message: err.message })
+  }
+})
+
+app.post('/api/mindcraft-settings', (req, res) => {
+  try {
+    const settings = req.body.settings
+    if (!settings || typeof settings !== 'object') {
+      return res.json({ success: false, message: '无效的设置数据' })
+    }
+    const settingsPath = path.join(__dirname, '..', 'mindcraft', 'settings.js')
+    // 生成 settings.js 内容
+    const content = `const settings = ${JSON.stringify(settings, null, 4)}\nexport default settings\n`
+    fs.writeFileSync(settingsPath, content, 'utf-8')
+    console.log('[高级设置] settings.js 已更新')
+    // 写入重启标记
+    const restartFile = path.join(__dirname, '..', 'data', '.restart')
+    fs.writeFileSync(restartFile, '1')
+    console.log('[高级设置] 重启标记已写入，MindCraft 将在几秒内重启')
+    res.json({ success: true, message: 'settings.js 已保存，MindCraft 正在重启' })
+  } catch (err) {
+    res.status(500).json({ success: false, message: err.message })
+  }
+})
+
 app.post('/api/fetch-models', async (req, res) => {
   try {
     const { baseUrl, apiKey } = req.body
