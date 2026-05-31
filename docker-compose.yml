@@ -9,7 +9,6 @@ services:
     volumes:
       - ./data:/app/data
       - ./data/mindcraft-settings.js:/app/mindcraft/settings.js
-      - ./data/profiles:/app/mindcraft/profiles
       - ./data/agents:/app/mindcraft/agents
     environment:
       - TZ=Asia/Shanghai
