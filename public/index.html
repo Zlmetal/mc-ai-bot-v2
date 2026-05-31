@@ -58,6 +58,27 @@
     }
     .mode-btn.active { background: #2563eb; color: white; border-color: #2563eb; }
 
+    /* 玩家 ID 选择 */
+    .player-bar {
+      display: flex; align-items: center; gap: 6px;
+      padding: 4px 0; margin-bottom: 4px;
+    }
+    .player-label { font-size: 13px; color: #888; }
+    .player-select {
+      flex: 1; padding: 4px 8px; background: #1e1e2e; border: 1px solid #333;
+      border-radius: 6px; color: #e0e0e0; font-size: 12px; outline: none;
+    }
+    .player-select:focus { border-color: #2563eb; }
+    .player-input {
+      flex: 1; padding: 4px 8px; background: #1e1e2e; border: 1px solid #333;
+      border-radius: 6px; color: #e0e0e0; font-size: 12px; outline: none;
+    }
+    .player-input:focus { border-color: #2563eb; }
+    .player-btn {
+      padding: 4px 10px; background: #2563eb; border: none; border-radius: 6px;
+      color: white; font-size: 12px; cursor: pointer;
+    }
+
     /* 文字输入行 */
     .text-row { display: flex; gap: 8px; align-items: flex-end; }
     .text-input {
@@ -122,6 +143,16 @@
   </div>
 
   <div class="input-area">
+    <!-- 玩家 ID 选择 -->
+    <div class="player-bar" id="playerBar">
+      <span class="player-label">🎮</span>
+      <select id="playerSelect" class="player-select">
+        <option value="">选择玩家...</option>
+      </select>
+      <input type="text" id="playerCustom" class="player-input" placeholder="输入自定义ID" style="display:none;">
+      <button class="player-btn" id="playerConfirm" style="display:none;">✓</button>
+    </div>
+
     <div class="mode-switch">
       <button class="mode-btn active" id="modeText">⌨️ 文字</button>
       <button class="mode-btn" id="modeVoice">🎤 语音</button>
@@ -250,12 +281,113 @@
     }
     function showTyping() { typingIndicator.classList.add('active'); chatArea.scrollTop = chatArea.scrollHeight }
     function hideTyping() { typingIndicator.classList.remove('active') }
+    function getPlayerName() {
+      const select = $('playerSelect')
+      const custom = $('playerCustom')
+      if (select.value === '__custom__') {
+        return custom.value.trim() || 'WEB'
+      }
+      return select.value || 'WEB'
+    }
+
     function sendMessage(text) {
       if (!text || !ws || ws.readyState !== WebSocket.OPEN) return
       addMessage('user', text)
-      ws.send(JSON.stringify({ type: 'chat', text }))
+      const playerName = getPlayerName()
+      ws.send(JSON.stringify({ type: 'chat', text, playerName }))
       showTyping()
     }
+
+    // ========== 玩家 ID 选择 ==========
+    (function initPlayerSelect() {
+      const select = $('playerSelect')
+      const custom = $('playerCustom')
+      const confirm = $('playerConfirm')
+
+      // 从 localStorage 恢复
+      const saved = localStorage.getItem('mc-player-name') || ''
+
+      // 添加自定义选项
+      const opt = document.createElement('option')
+      opt.value = '__custom__'
+      opt.textContent = '✏️ 自定义ID...'
+      select.appendChild(opt)
+
+      // 恢复上次选择
+      if (saved) {
+        const exists = Array.from(select.options).some(o => o.value === saved)
+        if (exists) {
+          select.value = saved
+        } else {
+          select.value = '__custom__'
+          custom.value = saved
+          custom.style.display = ''
+          confirm.style.display = ''
+        }
+      }
+
+      select.addEventListener('change', () => {
+        if (select.value === '__custom__') {
+          custom.style.display = ''
+          confirm.style.display = ''
+          custom.focus()
+        } else {
+          custom.style.display = 'none'
+          confirm.style.display = 'none'
+          localStorage.setItem('mc-player-name', select.value)
+        }
+      })
+
+      confirm.addEventListener('click', () => {
+        const name = custom.value.trim()
+        if (name) localStorage.setItem('mc-player-name', name)
+      })
+
+      custom.addEventListener('keydown', (e) => {
+        if (e.key === 'Enter') {
+          const name = custom.value.trim()
+          if (name) localStorage.setItem('mc-player-name', name)
+        }
+      })
+
+      // 连接成功后获取在线玩家
+      function fetchPlayers() {
+        if (!ws || ws.readyState !== WebSocket.OPEN) return
+        ws.send(JSON.stringify({ type: 'get-players' }))
+      }
+
+      // 监听玩家列表
+      const origOnmessage = ws.onmessage
+      ws.addEventListener('message', (e) => {
+        try {
+          const d = JSON.parse(e.data)
+          if (d.type === 'players' && Array.isArray(d.players)) {
+            // 保留当前选中值
+            const current = select.value
+            // 清除旧的玩家选项（保留自定义）
+            while (select.options.length > 1) {
+              select.remove(0)
+            }
+            // 添加玩家
+            d.players.forEach(p => {
+              const opt = document.createElement('option')
+              opt.value = p
+              opt.textContent = p
+              select.insertBefore(opt, select.options[select.options.length - 1])
+            })
+            // 恢复选中
+            if (current) select.value = current
+          }
+        } catch (err) {}
+      })
+
+      // WebSocket 连接后获取玩家列表
+      if (ws.readyState === WebSocket.OPEN) fetchPlayers()
+      const origOpen = ws.onopen
+      ws.addEventListener('open', fetchPlayers)
+      // 定期刷新
+      setInterval(fetchPlayers, 30000)
+    })()
 
     $('textInput').addEventListener('input', () => {
       $('btnSend').disabled = !$('textInput').value.trim()
