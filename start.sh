@@ -20,7 +20,7 @@ if [ -f /app/data/config.json ]; then
 fi
 echo "[启动] Bot 名字: $BOT_NAME"
 
-# 生成 MindCraft settings.js
+# 生成 MindCraft settings.js（仅当持久化文件不存在时）
 generate_settings() {
   # 重新读取最新的 bot 名字
   if [ -f /app/data/config.json ]; then
@@ -30,14 +30,19 @@ generate_settings() {
     fi
   fi
 
-  # 确保 profile 文件存在
   mkdir -p /app/mindcraft/profiles
+
+  # 仅当持久化 profile 不存在时才生成
   if [ ! -f "/app/mindcraft/profiles/$BOT_NAME.json" ]; then
     echo "{\"name\":\"$BOT_NAME\",\"model\":{\"api\":\"openai\",\"model\":\"mimo-v2.5\",\"url\":\"https://api.xiaomimimo.com/v1\"},\"vision_model\":{\"api\":\"openai\",\"model\":\"mimo-v2.5\",\"url\":\"https://api.xiaomimimo.com/v1\"}}" > "/app/mindcraft/profiles/$BOT_NAME.json"
     echo "[启动] 创建 profile: $BOT_NAME.json"
+  else
+    echo "[启动] 使用已有 profile: $BOT_NAME.json"
   fi
 
-  cat > /app/mindcraft/settings.js << EOF
+  # 仅当持久化 settings.js 不存在时才生成
+  if [ ! -f /app/mindcraft/settings.js ]; then
+    cat > /app/mindcraft/settings.js << EOF
 const settings = {
     "minecraft_version": "$MC_VERSION",
     "host": "$MC_HOST",
@@ -71,7 +76,10 @@ const settings = {
 }
 export default settings
 EOF
-  echo "[启动] settings.js 已生成 (Bot: $BOT_NAME)"
+    echo "[启动] settings.js 已生成"
+  else
+    echo "[启动] 使用已有 settings.js"
+  fi
 }
 
 generate_settings
@@ -137,6 +145,24 @@ while true; do
     echo "========================================="
     echo "[重启] 配置变更，重启 MindCraft..."
     echo "========================================="
+    # 重新读取 bot 名字
+    if [ -f /app/data/config.json ]; then
+      NEW_NAME=$(python3 -c "import json; d=json.load(open('/app/data/config.json')); print(d.get('bot',{}).get('name','andrew'))" 2>/dev/null)
+      if [ -n "$NEW_NAME" ] && [ "$NEW_NAME" != "None" ] && [ "$NEW_NAME" != "$BOT_NAME" ]; then
+        echo "[重启] Bot 名字从 $BOT_NAME 改为 $NEW_NAME"
+        # 如果旧 profile 存在，重命名为新名字
+        if [ -f "/app/mindcraft/profiles/$BOT_NAME.json" ]; then
+          mv "/app/mindcraft/profiles/$BOT_NAME.json" "/app/mindcraft/profiles/$NEW_NAME.json"
+        fi
+        BOT_NAME="$NEW_NAME"
+        # 更新 settings.js 中的 profiles 路径
+        if [ -f /app/mindcraft/settings.js ]; then
+          sed -i "s|./profiles/[^"]*.json|./profiles/$BOT_NAME.json|g" /app/mindcraft/settings.js
+        fi
+      fi
+    fi
+    # 确保 profile 存在
+    generate_settings
     stop_mindcraft
     start_mindcraft
     echo "[重启] ✅ MindCraft 已重启 (PID: $MINDCRAFT_PID)"
