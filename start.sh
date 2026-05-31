@@ -24,6 +24,7 @@ echo "[启动] Bot 名字: $BOT_NAME"
 restore_profile() {
   local name="$1"
   mkdir -p /app/mindcraft/profiles
+  mkdir -p /app/mindcraft/bots
   # 从 data 备份恢复（备份存在就覆盖）
   if [ -f "/app/data/profiles/$name.json" ]; then
     cp "/app/data/profiles/$name.json" "/app/mindcraft/profiles/$name.json"
