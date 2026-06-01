@@ -3,7 +3,7 @@
  * 模型预加载，避免每次识别都重新加载
  */
 
-import { spawn } from 'child_process'
+import { spawn, execSync } from 'child_process'
 import fs from 'fs'
 import path from 'path'
 import { fileURLToPath } from 'url'
@@ -24,14 +24,11 @@ export default class STTService {
 
   _init() {
     try {
-      // 检查 faster-whisper 是否安装
-      const { execSync } = await import('child_process')
       execSync('python3 -c "import faster_whisper"', { stdio: 'ignore' })
       this._startWorker()
     } catch {
       console.log('[STT] 安装 faster-whisper...')
       try {
-        const { execSync } = await import('child_process')
         execSync('pip3 install faster-whisper --break-system-packages', {
           stdio: 'ignore',
           timeout: 120000
@@ -45,7 +42,6 @@ export default class STTService {
   }
 
   _startWorker() {
-    // 启动持久化的 Python 进程，模型只加载一次
     const workerScript = `
 import sys
 import json
@@ -68,7 +64,6 @@ while True:
     except Exception as e:
         print(json.dumps({"success": False, "error": str(e)}), flush=True)
 `
-
     const workerPath = path.join(TEMP_DIR, 'stt_worker.py')
     fs.writeFileSync(workerPath, workerScript)
 
@@ -94,19 +89,15 @@ while True:
       }
     })
 
-    this._worker.stderr.on('data', (data) => {
-      // 忽略 Whisper 的日志输出
-    })
+    this._worker.stderr.on('data', () => {})
 
     this._worker.on('exit', () => {
       console.log('[STT] Worker 进程退出，将在下次使用时重启')
       this.ready = false
       this._worker = null
-      // 延迟重启
       setTimeout(() => this._startWorker(), 3000)
     })
 
-    // 超时检测：如果 60 秒内没收到 READY，认为失败
     setTimeout(() => {
       if (!this.ready) {
         console.error('[STT] ❌ 模型加载超时')
@@ -115,15 +106,9 @@ while True:
     }, 60000)
   }
 
-  /**
-   * 将音频 buffer 转为文字
-   * @param {Buffer} audioBuffer - webm/ogg/wav 格式的音频
-   * @returns {string} 识别出的文字
-   */
   async transcribe(audioBuffer) {
     if (!this.ready || !this._worker) throw new Error('STT 未就绪')
 
-    // 保存临时文件
     const filename = `stt_${Date.now()}.webm`
     const filePath = path.join(TEMP_DIR, filename)
     fs.writeFileSync(filePath, audioBuffer)
@@ -137,18 +122,13 @@ while True:
 
         this._pendingResolve = (result) => {
           clearTimeout(timeout)
-          if (result.success) {
-            resolve(result.text)
-          } else {
-            reject(new Error(result.error))
-          }
+          if (result.success) resolve(result.text)
+          else reject(new Error(result.error))
         }
 
-        // 发送文件路径给 worker
         this._worker.stdin.write(filePath + '\n')
       })
     } finally {
-      // 清理临时文件
       try { fs.unlinkSync(filePath) } catch {}
     }
   }
