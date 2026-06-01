@@ -1,6 +1,7 @@
 /**
  * main.js - MC AI Bot V2 入口
  * 基于 MindCraft + Web界面 + 记忆系统 + 语音交互
+ * 支持多 Bot 管理
  */
 
 import express from 'express'
@@ -21,13 +22,25 @@ const __dirname = path.dirname(fileURLToPath(import.meta.url))
 const CONFIG_PATH = path.join(__dirname, '..', 'data', 'config.json')
 
 const DEFAULT_CONFIG = {
+  bots: [{
+    id: 'bot_1',
+    name: 'andrew',
+    enabled: true,
+    personality: '勤劳、好奇、有点话多、喜欢探索',
+    style: '说话简洁但有温度，偶尔开玩笑，用中文',
+    model: { api: 'openai', model: 'mimo-v2.5', url: 'https://api.xiaomimimo.com/v1' },
+    vision_model: { api: 'openai', model: 'mimo-v2.5', url: 'https://api.xiaomimimo.com/v1' },
+    apiKey: ''
+  }],
+  mc: { host: '', port: 25565, version: '1.21.11', auth: 'offline' },
   mindcraft: { host: 'localhost', port: 8080 },
   web: { port: 3000, username: 'admin', password: 'password' },
-  mc: { host: '', port: 25565, version: '1.21.11' },
-  llm: { provider: 'mimo', model: 'mimo-v2.5', apiKey: '', baseUrl: 'https://api.xiaomimimo.com/v1' },
   tts: { enabled: true, voice: '云希（男）' },
-  bot: { name: 'andrew', personality: '勤劳、好奇、有点话多、喜欢探索', style: '说话简洁但有温度，偶尔开玩笑，用中文' },
   wake: { enabled: false, word: '' }
+}
+
+function generateId() {
+  return 'bot_' + Date.now().toString(36) + Math.random().toString(36).substring(2, 6)
 }
 
 function loadConfig() {
@@ -37,7 +50,37 @@ function loadConfig() {
     fs.writeFileSync(CONFIG_PATH, JSON.stringify(DEFAULT_CONFIG, null, 2), 'utf-8')
     return JSON.parse(JSON.stringify(DEFAULT_CONFIG))
   }
-  return JSON.parse(fs.readFileSync(CONFIG_PATH, 'utf-8'))
+  const config = JSON.parse(fs.readFileSync(CONFIG_PATH, 'utf-8'))
+
+  // 向后兼容：旧格式 config.bot → config.bots[0]
+  if (config.bot && !config.bots) {
+    console.log('[配置] 迁移旧格式 config.bot → config.bots')
+    config.bots = [{
+      id: generateId(),
+      name: config.bot.name || 'andrew',
+      enabled: true,
+      personality: config.bot.personality || '',
+      style: config.bot.style || '',
+      model: config.llm ? { api: 'openai', model: config.llm.model || 'mimo-v2.5', url: (config.llm.baseUrl || 'https://api.xiaomimimo.com/v1').replace(/\/+$/, '') } : DEFAULT_CONFIG.bots[0].model,
+      vision_model: DEFAULT_CONFIG.bots[0].vision_model,
+      apiKey: config.llm?.apiKey || ''
+    }]
+    delete config.bot
+    saveConfig(config)
+    console.log('[配置] 迁移完成')
+  }
+
+  // 确保 bots 数组存在
+  if (!config.bots || !Array.isArray(config.bots) || config.bots.length === 0) {
+    config.bots = DEFAULT_CONFIG.bots
+  }
+
+  // 确保每个 bot 有 id
+  config.bots.forEach(bot => {
+    if (!bot.id) bot.id = generateId()
+  })
+
+  return config
 }
 
 function saveConfig(config) {
@@ -52,69 +95,96 @@ if (process.env.MC_PORT) config.mc.port = parseInt(process.env.MC_PORT)
 if (process.env.MINDCRAFT_HOST) config.mindcraft.host = process.env.MINDCRAFT_HOST
 if (process.env.MINDCRAFT_PORT) config.mindcraft.port = parseInt(process.env.MINDCRAFT_PORT)
 
-// 生成 MindCraft 配置和 profile
+// ========== syncMindCraftConfig ==========
+
 function syncMindCraftConfig() {
   const mcDir = path.join(__dirname, '..', 'mindcraft')
   if (!fs.existsSync(mcDir)) return
 
-  const botName = config.bot?.name || 'andrew'
-  const personality = config.bot?.personality || '勤劳、好奇、有点话多、喜欢探索'
-  const style = config.bot?.style || '说话简洁但有温度，偶尔开玩笑，用中文'
-  
-  // 校验 LLM 模型名（防止 TTS 模型名污染）
-  let llmModel = config.llm?.model || 'mimo-v2.5'
-  if (llmModel.includes('tts') || llmModel.includes('TTS') || llmModel.includes('embedding')) {
-    console.warn(`[配置] LLM 模型名异常: ${llmModel}，回退到 mimo-v2.5`)
-    llmModel = 'mimo-v2.5'
-    config.llm.model = llmModel
-    saveConfig(config)
-  }
-  
   const profilesDir = path.join(mcDir, 'profiles')
   if (!fs.existsSync(profilesDir)) fs.mkdirSync(profilesDir, { recursive: true })
-  
-  const profilePath = path.join(profilesDir, `${botName}.json`)
-  
-  // conversing 内容（性格+风格）
-  const conversingText = `你是 ${botName}，性格特征：${personality}。说话风格：${style}。\n\n` +
-    `You are an AI Minecraft bot named $NAME that can converse with players, see, move, mine, build, and interact with the world by using commands.\n` +
-    `$SELF_PROMPT Be a friendly, casual, effective, and efficient robot. Be very brief in your responses, don't apologize constantly, don't give instructions or make lists unless asked, and don't refuse requests. Don't pretend to act, use commands immediately when requested. Do NOT say this: 'Sure, I've stopped. *stops*', instead say this: 'Sure, I'll stop. !stop'. Respond only as $NAME, never output '(FROM OTHER BOT)' or pretend to be someone else. If you have nothing to say or do, respond with an just a tab '\t'. This is extremely important to me, take a deep breath and have fun :)\nSummarized memory:'$MEMORY'\n$STATS\n$INVENTORY\n$COMMAND_DOCS\n$EXAMPLES\nConversation Begin:`
 
-  if (!fs.existsSync(profilePath)) {
-    // profile 不存在，创建完整 profile
-    const profile = {
-      name: botName,
-      model: { api: 'openai', model: llmModel, url: (config.llm?.baseUrl || 'https://api.xiaomimimo.com/v1').replace(/\/+$/, '') },
-      vision_model: { api: 'openai', model: llmModel, url: (config.llm?.baseUrl || 'https://api.xiaomimimo.com/v1').replace(/\/+$/, '') },
-      conversing: conversingText
+  const enabledBots = config.bots.filter(b => b.enabled !== false)
+  const profileNames = []
+
+  for (const bot of enabledBots) {
+    const botName = bot.name || 'andrew'
+    const personality = bot.personality || '勤劳、好奇'
+    const style = bot.style || '说话简洁'
+
+    // 使用 bot 自己的 model 配置，或回退到全局
+    const botModel = bot.model || { api: 'openai', model: 'mimo-v2.5', url: 'https://api.xiaomimimo.com/v1' }
+    const botVisionModel = bot.vision_model || botModel
+
+    // conversing 内容（性格+风格）
+    const conversingText = `你是 ${botName}，性格特征：${personality}。说话风格：${style}。\n\n` +
+      `You are an AI Minecraft bot named $NAME that can converse with players, see, move, mine, build, and interact with the world by using commands.\n` +
+      `$SELF_PROMPT Be a friendly, casual, effective, and efficient robot. Be very brief in your responses, don't apologize constantly, don't give instructions or make lists unless asked, and don't refuse requests. Don't pretend to act, use commands immediately when requested. Do NOT say this: 'Sure, I've stopped. *stops*', instead say this: 'Sure, I'll stop. !stop'. Respond only as $NAME, never output '(FROM OTHER BOT)' or pretend to be someone else. If you have nothing to say or do, respond with an just a tab '\t'. This is extremely important to me, take a deep breath and have fun :)\nSummarized memory:'$MEMORY'\n$STATS\n$INVENTORY\n$COMMAND_DOCS\n$EXAMPLES\nConversation Begin:`
+
+    const profilePath = path.join(profilesDir, `${botName}.json`)
+
+    if (!fs.existsSync(profilePath)) {
+      const profile = {
+        name: botName,
+        model: botModel,
+        vision_model: botVisionModel,
+        conversing: conversingText
+      }
+      fs.writeFileSync(profilePath, JSON.stringify(profile, null, 2))
+      console.log(`[配置] 创建 profile: ${botName}.json`)
+    } else {
+      try {
+        const existing = JSON.parse(fs.readFileSync(profilePath, 'utf-8'))
+        existing.conversing = conversingText
+        // 更新 model（如果 bot 配置了）
+        if (bot.model) existing.model = bot.model
+        if (bot.vision_model) existing.vision_model = bot.vision_model
+        fs.writeFileSync(profilePath, JSON.stringify(existing, null, 2))
+        console.log(`[配置] 更新 profile: ${botName}.json`)
+      } catch (e) {
+        console.error(`[配置] 更新 profile 失败:`, e.message)
+      }
     }
-    fs.writeFileSync(profilePath, JSON.stringify(profile, null, 2))
-    console.log(`[配置] 创建 profile: ${botName}.json`)
-  } else {
-    // profile 已存在，只更新 conversing（保留 vision_model 等手动配置）
+
+    // 备份到 data 目录
     try {
-      const existing = JSON.parse(fs.readFileSync(profilePath, 'utf-8'))
-      existing.conversing = conversingText
-      fs.writeFileSync(profilePath, JSON.stringify(existing, null, 2))
-      console.log(`[配置] 更新 profile conversing: ${botName}.json`)
+      const backupDir = path.join(__dirname, '..', 'data', 'profiles')
+      if (!fs.existsSync(backupDir)) fs.mkdirSync(backupDir, { recursive: true })
+      fs.copyFileSync(profilePath, path.join(backupDir, `${botName}.json`))
+    } catch (e) { /* 忽略备份失败 */ }
+
+    profileNames.push(`./profiles/${botName}.json`)
+
+    // 同步 API Key（每个 bot 独立的 key 写入 keys.json，最后一个生效）
+    const apiKey = bot.apiKey
+    if (apiKey && !apiKey.includes('...')) {
+      fs.writeFileSync(path.join(mcDir, 'keys.json'), JSON.stringify({ OPENAI_API_KEY: apiKey }, null, 2))
+    }
+
+    console.log(`[配置] Bot: ${botName}, Model: ${botModel.model}`)
+  }
+
+  // 更新 settings.js 的 profiles 数组
+  const settingsPath = path.join(mcDir, 'settings.js')
+  if (fs.existsSync(settingsPath)) {
+    try {
+      let raw = fs.readFileSync(settingsPath, 'utf-8').replace(/^\uFEFF/, '').replace(/\/\/.*$/gm, '')
+      const start = raw.indexOf('{')
+      const end = raw.lastIndexOf('}')
+      if (start !== -1 && end > start) {
+        const settings = new Function('return ' + raw.substring(start, end + 1).replace(/,\s*}/g, '}'))()
+        settings.profiles = profileNames
+        const content = `const settings = ${JSON.stringify(settings, null, 4)}\nexport default settings\n`
+        fs.writeFileSync(settingsPath, content, 'utf-8')
+        // 备份
+        try {
+          fs.writeFileSync(path.join(__dirname, '..', 'data', 'mindcraft-settings.js'), content, 'utf-8')
+        } catch (e) { /* 忽略 */ }
+      }
     } catch (e) {
-      console.error(`[配置] 更新 profile 失败:`, e.message)
+      console.error('[配置] 更新 settings.js profiles 失败:', e.message)
     }
   }
-  // 备份到 data 目录
-  try {
-    const backupDir = path.join(__dirname, '..', 'data', 'profiles')
-    if (!fs.existsSync(backupDir)) fs.mkdirSync(backupDir, { recursive: true })
-    fs.copyFileSync(profilePath, path.join(backupDir, `${botName}.json`))
-  } catch (e) { /* 忽略备份失败 */ }
-
-  // 同步 API Key
-  const apiKey = config.llm?.apiKey
-  if (apiKey && !apiKey.includes('...')) {
-    fs.writeFileSync(path.join(mcDir, 'keys.json'), JSON.stringify({ OPENAI_API_KEY: apiKey }, null, 2))
-  }
-
-  console.log(`[配置] Bot: ${botName}, Model: ${llmModel}`)
 }
 
 syncMindCraftConfig()
@@ -170,12 +240,11 @@ const app = express()
 const server = http.createServer(app)
 const wss = new WebSocketServer({ server })
 
-// 中间件
 app.use(express.json({ limit: '10mb' }))
 
 // ========== 认证系统 ==========
-const SESSIONS = new Map()  // token -> { username, expire }
-const SESSION_TTL = 7 * 24 * 60 * 60 * 1000  // 7天
+const SESSIONS = new Map()
+const SESSION_TTL = 7 * 24 * 60 * 60 * 1000
 
 function generateToken() {
   return Math.random().toString(36).substring(2) + Math.random().toString(36).substring(2)
@@ -192,14 +261,10 @@ function parseCookies(req) {
   return cookies
 }
 
-// 认证中间件
 function authMiddleware(req, res, next) {
-  // 放行：登录页面、登录 API、音频文件
   const publicPaths = ['/login.html', '/api/login', '/voices/']
   const isPublic = publicPaths.some(p => req.path.startsWith(p))
   if (isPublic) return next()
-
-  // 检查 cookie
   const cookies = parseCookies(req)
   const token = cookies['mcbot_session']
   if (token && SESSIONS.has(token)) {
@@ -207,8 +272,6 @@ function authMiddleware(req, res, next) {
     if (session.expire > Date.now()) return next()
     SESSIONS.delete(token)
   }
-
-  // 未认证，API 返回 401，页面重定向到登录
   if (req.path.startsWith('/api/')) {
     return res.status(401).json({ success: false, message: '请先登录' })
   }
@@ -217,12 +280,11 @@ function authMiddleware(req, res, next) {
 
 app.use(authMiddleware)
 
-// 登录 API
+// 登录/登出
 app.post('/api/login', (req, res) => {
   const { username, password } = req.body
   const cfgUser = config.web?.username || 'admin'
   const cfgPass = config.web?.password || 'password'
-
   if (username === cfgUser && password === cfgPass) {
     const token = generateToken()
     SESSIONS.set(token, { username, expire: Date.now() + SESSION_TTL })
@@ -233,7 +295,6 @@ app.post('/api/login', (req, res) => {
   }
 })
 
-// 登出 API
 app.post('/api/logout', (req, res) => {
   const cookies = parseCookies(req)
   const token = cookies['mcbot_session']
@@ -242,11 +303,11 @@ app.post('/api/logout', (req, res) => {
   res.json({ success: true })
 })
 
-// 静态文件（认证之后）
+// 静态文件
 app.use(express.static(path.join(__dirname, '..', 'public')))
 app.use('/voices', express.static(path.join(__dirname, '..', 'data', 'voices')))
 
-// ========== API 路由 ==========
+// ========== API: 状态 ==========
 
 app.get('/api/status', (req, res) => {
   res.json({
@@ -255,11 +316,18 @@ app.get('/api/status', (req, res) => {
   })
 })
 
+// ========== API: 全局配置 ==========
+
 app.get('/api/config', (req, res) => {
   const safe = JSON.parse(JSON.stringify(config))
-  if (safe.llm?.apiKey) safe.llm.apiKey = safe.llm.apiKey.substring(0, 8) + '...'
-  if (safe.tts?.apiKey) safe.tts.apiKey = safe.tts.apiKey.substring(0, 8) + '...'
-  safe._configured = !!(config.llm?.apiKey)
+  // 遮蔽 API Key
+  if (safe.bots) {
+    safe.bots.forEach(b => {
+      if (b.apiKey) b.apiKey = b.apiKey.substring(0, 8) + '...'
+    })
+  }
+  if (safe.tts?.mimoApiKey) safe.tts.mimoApiKey = safe.tts.mimoApiKey.substring(0, 8) + '...'
+  safe._configured = config.bots?.some(b => b.apiKey) || false
   safe._mindcraft_connected = connectedToMindCraft
   res.json(safe)
 })
@@ -267,79 +335,157 @@ app.get('/api/config', (req, res) => {
 app.post('/api/config', (req, res) => {
   try {
     const newConfig = req.body
-    if (newConfig.mindcraft) Object.assign(config.mindcraft, newConfig.mindcraft)
     if (newConfig.mc) Object.assign(config.mc, newConfig.mc)
-    if (newConfig.llm) {
-      if (newConfig.llm.apiKey && !newConfig.llm.apiKey.includes('...')) {
-        Object.assign(config.llm, newConfig.llm)
-      } else {
-        const { apiKey, ...rest } = newConfig.llm
-        Object.assign(config.llm, rest)
-      }
-    }
-    if (newConfig.tts) Object.assign(config.tts, newConfig.tts)
-    if (newConfig.bot) Object.assign(config.bot, newConfig.bot)
     if (newConfig.web) {
       if (newConfig.web.username) config.web.username = newConfig.web.username
       if (newConfig.web.password) config.web.password = newConfig.web.password
     }
+    if (newConfig.tts) Object.assign(config.tts, newConfig.tts)
     if (!config.wake) config.wake = { enabled: false, word: '' }
     if (newConfig.wake) Object.assign(config.wake, newConfig.wake)
 
     saveConfig(config)
     tts.updateConfig(config)
-
-    // 检查名字是否改变
-    const oldBotName = Object.keys(agentStates)[0] || 'andrew'
-    const newBotName = config.bot?.name || 'andrew'
-    const nameChanged = oldBotName !== newBotName
-
-    syncMindCraftConfig()
-
-    if (nameChanged) {
-      // 名字变了需要重启整个 MindCraft 进程
-      console.log(`[配置] Bot 名字从 ${oldBotName} 改为 ${newBotName}，写入重启标记`)
-      // 写入重启标记，start.sh 会检测到并重启 MindCraft
-      try {
-        fs.writeFileSync(path.join(__dirname, '..', 'data', '.restart'), '1')
-        console.log('[配置] 重启标记已写入，MindCraft 将在几秒内重启')
-      } catch (e) {
-        console.log('[配置] 重启标记写入失败:', e.message)
-      }
-    } else if (connectedToMindCraft && mindcraftSocket) {
-      // 名字没变，只重启 agent
-      const agents = Object.keys(agentStates)
-      const currentAgentName = agents[0] || newBotName
-      mindcraftSocket.emit('restart-agent', currentAgentName)
-      console.log('[配置] 已请求重启 MindCraft Agent:', currentAgentName)
-    }
-
-    res.json({ success: true, message: '配置已保存' })
+    res.json({ success: true, message: '全局配置已保存' })
   } catch (err) {
     res.status(500).json({ success: false, message: err.message })
   }
 })
 
-// ========== 高级设置 API (settings.js) ==========
+// ========== API: Bot 管理 ==========
+
+app.get('/api/bots', (req, res) => {
+  const bots = config.bots.map(b => {
+    const safe = { ...b }
+    if (safe.apiKey) safe.apiKey = safe.apiKey.substring(0, 8) + '...'
+    // 添加在线状态
+    const agent = agentStates[b.name]
+    safe.online = !!agent
+    return safe
+  })
+  res.json({ success: true, bots })
+})
+
+app.post('/api/bots', (req, res) => {
+  try {
+    const bot = req.body
+    if (!bot.name) return res.json({ success: false, message: 'Bot 名字不能为空' })
+    // 检查名字重复
+    if (config.bots.some(b => b.name === bot.name)) {
+      return res.json({ success: false, message: `Bot 名字 "${bot.name}" 已存在` })
+    }
+    const newBot = {
+      id: generateId(),
+      name: bot.name,
+      enabled: bot.enabled !== false,
+      personality: bot.personality || '',
+      style: bot.style || '',
+      model: bot.model || DEFAULT_CONFIG.bots[0].model,
+      vision_model: bot.vision_model || DEFAULT_CONFIG.bots[0].vision_model,
+      apiKey: bot.apiKey || ''
+    }
+    config.bots.push(newBot)
+    saveConfig(config)
+    syncMindCraftConfig()
+    // 写入重启标记
+    fs.writeFileSync(path.join(__dirname, '..', 'data', '.restart'), '1')
+    console.log(`[配置] 新增 Bot: ${newBot.name}，写入重启标记`)
+    res.json({ success: true, bot: { ...newBot, apiKey: newBot.apiKey ? newBot.apiKey.substring(0, 8) + '...' : '' } })
+  } catch (err) {
+    res.status(500).json({ success: false, message: err.message })
+  }
+})
+
+app.get('/api/bots/:id', (req, res) => {
+  const bot = config.bots.find(b => b.id === req.params.id)
+  if (!bot) return res.json({ success: false, message: 'Bot 不存在' })
+  const safe = { ...bot }
+  if (safe.apiKey) safe.apiKey = safe.apiKey.substring(0, 8) + '...'
+  res.json({ success: true, bot: safe })
+})
+
+app.put('/api/bots/:id', (req, res) => {
+  try {
+    const idx = config.bots.findIndex(b => b.id === req.params.id)
+    if (idx === -1) return res.json({ success: false, message: 'Bot 不存在' })
+
+    const updates = req.body
+    const oldBot = config.bots[idx]
+
+    // 检查名字重复（排除自己）
+    if (updates.name && updates.name !== oldBot.name) {
+      if (config.bots.some((b, i) => i !== idx && b.name === updates.name)) {
+        return res.json({ success: false, message: `Bot 名字 "${updates.name}" 已存在` })
+      }
+    }
+
+    // 合并更新
+    const nameChanged = updates.name && updates.name !== oldBot.name
+    Object.assign(config.bots[idx], updates)
+    // 保护 apiKey：如果传入的是遮蔽值，保留原值
+    if (updates.apiKey && updates.apiKey.includes('...')) {
+      config.bots[idx].apiKey = oldBot.apiKey
+    }
+
+    saveConfig(config)
+    syncMindCraftConfig()
+
+    // 写入重启标记
+    fs.writeFileSync(path.join(__dirname, '..', 'data', '.restart'), '1')
+    console.log(`[配置] 更新 Bot: ${config.bots[idx].name}，写入重启标记`)
+
+    const safe = { ...config.bots[idx] }
+    if (safe.apiKey) safe.apiKey = safe.apiKey.substring(0, 8) + '...'
+    res.json({ success: true, bot: safe })
+  } catch (err) {
+    res.status(500).json({ success: false, message: err.message })
+  }
+})
+
+app.delete('/api/bots/:id', (req, res) => {
+  try {
+    const idx = config.bots.findIndex(b => b.id === req.params.id)
+    if (idx === -1) return res.json({ success: false, message: 'Bot 不存在' })
+    if (config.bots.length <= 1) return res.json({ success: false, message: '至少保留一个 Bot' })
+
+    const removed = config.bots.splice(idx, 1)[0]
+    saveConfig(config)
+    syncMindCraftConfig()
+
+    fs.writeFileSync(path.join(__dirname, '..', 'data', '.restart'), '1')
+    console.log(`[配置] 删除 Bot: ${removed.name}，写入重启标记`)
+
+    res.json({ success: true, message: `Bot "${removed.name}" 已删除` })
+  } catch (err) {
+    res.status(500).json({ success: false, message: err.message })
+  }
+})
+
+app.post('/api/bots/:id/toggle', (req, res) => {
+  try {
+    const bot = config.bots.find(b => b.id === req.params.id)
+    if (!bot) return res.json({ success: false, message: 'Bot 不存在' })
+    bot.enabled = !bot.enabled
+    saveConfig(config)
+    syncMindCraftConfig()
+    fs.writeFileSync(path.join(__dirname, '..', 'data', '.restart'), '1')
+    res.json({ success: true, enabled: bot.enabled })
+  } catch (err) {
+    res.status(500).json({ success: false, message: err.message })
+  }
+})
+
+// ========== API: 高级设置 (settings.js) ==========
 
 app.get('/api/mindcraft-settings', (req, res) => {
   try {
     const settingsPath = path.join(__dirname, '..', 'mindcraft', 'settings.js')
-    if (!fs.existsSync(settingsPath)) {
-      return res.json({ success: false, message: 'settings.js 不存在' })
-    }
-    let content = fs.readFileSync(settingsPath, 'utf-8')
-    // 去掉 BOM 和注释
-    content = content.replace(/^\uFEFF/, '').replace(/\/\/.*$/gm, '')
-    // 找到 settings 对象的起止位置
+    if (!fs.existsSync(settingsPath)) return res.json({ success: false, message: 'settings.js 不存在' })
+    let content = fs.readFileSync(settingsPath, 'utf-8').replace(/^\uFEFF/, '').replace(/\/\/.*$/gm, '')
     const start = content.indexOf('{')
     const end = content.lastIndexOf('}')
-    if (start === -1 || end === -1 || end <= start) {
-      return res.json({ success: false, message: '无法解析 settings.js' })
-    }
-    const settingsStr = content.substring(start, end + 1)
-      .replace(/,\s*}/g, '}')    // 去掉尾逗号
-    const settings = new Function('return ' + settingsStr)()
+    if (start === -1 || end === -1 || end <= start) return res.json({ success: false, message: '无法解析 settings.js' })
+    const settings = new Function('return ' + content.substring(start, end + 1).replace(/,\s*}/g, '}'))()
     res.json({ success: true, settings })
   } catch (err) {
     res.json({ success: false, message: err.message })
@@ -349,40 +495,29 @@ app.get('/api/mindcraft-settings', (req, res) => {
 app.post('/api/mindcraft-settings', (req, res) => {
   try {
     const newSettings = req.body.settings
-    if (!newSettings || typeof newSettings !== 'object') {
-      return res.json({ success: false, message: '无效的设置数据' })
-    }
+    if (!newSettings || typeof newSettings !== 'object') return res.json({ success: false, message: '无效的设置数据' })
     const settingsPath = path.join(__dirname, '..', 'mindcraft', 'settings.js')
-    // 读取现有 settings 并合并（保留 profiles 等表单中没有的字段）
     let existing = {}
     if (fs.existsSync(settingsPath)) {
       try {
         let raw = fs.readFileSync(settingsPath, 'utf-8').replace(/^\uFEFF/, '').replace(/\/\/.*$/gm, '')
-        const start = raw.indexOf('{')
-        const end = raw.lastIndexOf('}')
-        if (start !== -1 && end > start) {
-          existing = new Function('return ' + raw.substring(start, end + 1).replace(/,\s*}/g, '}'))()
-        }
-      } catch (e) { /* 解析失败用空对象 */ }
+        const s = raw.indexOf('{'), e = raw.lastIndexOf('}')
+        if (s !== -1 && e > s) existing = new Function('return ' + raw.substring(s, e + 1).replace(/,\s*}/g, '}'))()
+      } catch (e) { /* 空对象 */ }
     }
     const merged = { ...existing, ...newSettings }
-    // 生成 settings.js 内容
     const content = `const settings = ${JSON.stringify(merged, null, 4)}\nexport default settings\n`
     fs.writeFileSync(settingsPath, content, 'utf-8')
-    // 备份到 data 目录
-    try {
-      fs.writeFileSync(path.join(__dirname, '..', 'data', 'mindcraft-settings.js'), content, 'utf-8')
-    } catch (e) { /* 忽略备份失败 */ }
+    try { fs.writeFileSync(path.join(__dirname, '..', 'data', 'mindcraft-settings.js'), content, 'utf-8') } catch (e) { /* 忽略 */ }
     console.log('[高级设置] settings.js 已更新')
-    // 写入重启标记
-    const restartFile = path.join(__dirname, '..', 'data', '.restart')
-    fs.writeFileSync(restartFile, '1')
-    console.log('[高级设置] 重启标记已写入，MindCraft 将在几秒内重启')
+    fs.writeFileSync(path.join(__dirname, '..', 'data', '.restart'), '1')
     res.json({ success: true, message: 'settings.js 已保存，MindCraft 正在重启' })
   } catch (err) {
     res.status(500).json({ success: false, message: err.message })
   }
 })
+
+// ========== API: 工具 ==========
 
 app.post('/api/fetch-models', async (req, res) => {
   try {
@@ -398,31 +533,25 @@ app.post('/api/fetch-models', async (req, res) => {
         const response = await fetch(url, { headers, signal: AbortSignal.timeout(10000) })
         if (!response.ok) continue
         const data = await response.json()
-        if (data.data && Array.isArray(data.data)) {
-          models = data.data.map(m => ({ id: m.id || m.name || m }))
-        } else if (Array.isArray(data)) {
-          models = data.map(m => ({ id: typeof m === 'string' ? m : m.id || m.name }))
-        }
+        if (data.data && Array.isArray(data.data)) models = data.data.map(m => ({ id: m.id || m.name || m }))
+        else if (Array.isArray(data)) models = data.map(m => ({ id: typeof m === 'string' ? m : m.id || m.name }))
         if (models.length > 0) break
       } catch (e) { continue }
     }
     res.json(models.length > 0 ? { success: true, models } : { success: false, message: '未获取到模型列表' })
-  } catch (err) {
-    res.json({ success: false, message: err.message })
-  }
+  } catch (err) { res.json({ success: false, message: err.message }) }
 })
 
 app.post('/api/test-llm', async (req, res) => {
   try {
-    const testConfig = req.body
-    const baseUrl = (testConfig.llm?.baseUrl || config.llm?.baseUrl || '').replace(/\/+$/, '')
-    const apiKey = (testConfig.llm?.apiKey && !testConfig.llm.apiKey.includes('...')) ? testConfig.llm.apiKey : config.llm?.apiKey
-    const model = testConfig.llm?.model || config.llm?.model
-    if (!apiKey) return res.json({ success: false, message: '请先填写 API Key' })
-    const response = await fetch(`${baseUrl}/chat/completions`, {
+    const { baseUrl, apiKey, model } = req.body
+    const url = (baseUrl || '').replace(/\/+$/, '')
+    const key = (apiKey && !apiKey.includes('...')) ? apiKey : ''
+    if (!key) return res.json({ success: false, message: '请先填写 API Key' })
+    const response = await fetch(`${url}/chat/completions`, {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${apiKey}` },
-      body: JSON.stringify({ model, messages: [{ role: 'user', content: '你好' }], max_tokens: 50 })
+      headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${key}` },
+      body: JSON.stringify({ model: model || 'mimo-v2.5', messages: [{ role: 'user', content: '你好' }], max_tokens: 50 })
     })
     if (!response.ok) { const err = await response.text(); return res.json({ success: false, message: `API 错误 (${response.status}): ${err}` }) }
     const data = await response.json()
@@ -436,9 +565,8 @@ app.post('/api/test-tts', async (req, res) => {
     const ttsConfig = {
       ...config.tts,
       ...testTts,
-      // 保留未被遮蔽的 API Key
       mimoApiKey: (testTts.mimoApiKey && !testTts.mimoApiKey.includes('...'))
-        ? testTts.mimoApiKey : (config.tts?.mimoApiKey || config.llm?.apiKey)
+        ? testTts.mimoApiKey : (config.tts?.mimoApiKey || '')
     }
     tts.updateConfig({ ...config, tts: ttsConfig })
     const audioUrl = await tts.synthesize('你好，这是语音合成测试。')
@@ -446,7 +574,6 @@ app.post('/api/test-tts', async (req, res) => {
   } catch (err) { res.json({ success: false, message: err.message }) }
 })
 
-// STT 语音转文字
 app.post('/api/stt', express.raw({ type: 'audio/*', limit: '10mb' }), async (req, res) => {
   try {
     if (!stt || !stt.ready) return res.json({ success: false, message: 'STT 未就绪' })
@@ -480,15 +607,24 @@ wss.on('connection', (ws) => {
   ws.on('message', async (data) => {
     try {
       const msg = JSON.parse(data.toString())
+
       if (msg.type === 'chat' && msg.text) {
-        // 转发给 MindCraft - 使用实际在线的 agent 名字
-        const agents = Object.keys(agentStates)
-        const botName = agents[0] || config.bot?.name || 'andrew'
+        // 根据 botId 或 botName 找到目标 agent
+        let targetAgent = null
+        if (msg.botId) {
+          const bot = config.bots.find(b => b.id === msg.botId)
+          if (bot) targetAgent = bot.name
+        }
+        if (!targetAgent) {
+          const agents = Object.keys(agentStates)
+          targetAgent = agents[0] || config.bots[0]?.name || 'andrew'
+        }
+
         const playerName = msg.playerName || 'WEB'
         if (connectedToMindCraft && mindcraftSocket) {
           memory.addToHistory('web-user', 'user', msg.text)
-          console.log(`[Web] ${playerName} 发送消息给 ${botName}: ${msg.text}`)
-          mindcraftSocket.emit('send-message', botName, {
+          console.log(`[Web] ${playerName} → ${targetAgent}: ${msg.text}`)
+          mindcraftSocket.emit('send-message', targetAgent, {
             message: msg.text,
             from: playerName
           })
@@ -497,17 +633,12 @@ wss.on('connection', (ws) => {
         }
       }
 
-      // 获取在线玩家列表
       if (msg.type === 'get-players') {
         if (connectedToMindCraft && mindcraftSocket) {
           try {
             const resp = await fetch(`http://localhost:8080/status`)
-            const data = await resp.json()
-            if (data.players && Array.isArray(data.players)) {
-              ws.send(JSON.stringify({ type: 'players', players: data.players }))
-            } else {
-              ws.send(JSON.stringify({ type: 'players', players: [] }))
-            }
+            const d = await resp.json()
+            ws.send(JSON.stringify({ type: 'players', players: d.players && Array.isArray(d.players) ? d.players : [] }))
           } catch (e) {
             ws.send(JSON.stringify({ type: 'players', players: [] }))
           }
@@ -530,7 +661,6 @@ function broadcastToClients(data) {
   }
 }
 
-// 定期推送状态
 setInterval(() => {
   broadcastToClients({
     type: 'status',
@@ -552,6 +682,3 @@ server.listen(PORT, '0.0.0.0', () => {
 })
 
 connectToMindCraft()
-
-process.on('SIGINT', () => { memory.close(); process.exit(0) })
-process.on('SIGTERM', () => { memory.close(); process.exit(0) })
