@@ -143,6 +143,13 @@
   </div>
 
   <div class="input-area">
+    <!-- Bot 选择 -->
+    <div class="player-bar" id="botBar">
+      <span class="player-label">🤖</span>
+      <select id="botSelect" class="player-select">
+        <option value="">选择 Bot...</option>
+      </select>
+    </div>
     <!-- 玩家 ID 选择 -->
     <div class="player-bar" id="playerBar">
       <span class="player-label">🎮</span>
@@ -314,7 +321,8 @@
       if (!text || !ws || ws.readyState !== WebSocket.OPEN) return
       addMessage('user', text)
       const playerName = getPlayerName()
-      ws.send(JSON.stringify({ type: 'chat', text, playerName }))
+      const botId = $('botSelect')?.value || ''
+      ws.send(JSON.stringify({ type: 'chat', text, playerName, botId }))
       showTyping()
     }
 
@@ -378,6 +386,41 @@
 
       // 定期刷新
       setInterval(() => window._fetchPlayers(), 30000)
+    })()
+
+    // ========== Bot 选择 ==========
+    (function initBotSelect() {
+      const select = $('botSelect')
+      if (!select) return
+      // 从 localStorage 恢复
+      const saved = localStorage.getItem('mc-active-bot') || ''
+
+      async function loadBots() {
+        try {
+          const r = await fetch('/api/bots')
+          const d = await r.json()
+          if (d.success && d.bots) {
+            const current = select.value || saved
+            // 清除旧选项（保留第一个）
+            while (select.options.length > 1) select.remove(0)
+            d.bots.forEach(b => {
+              if (b.enabled === false) return
+              const opt = document.createElement('option')
+              opt.value = b.id
+              opt.textContent = b.name + (b.online ? ' 🟢' : '')
+              select.insertBefore(opt, select.options[select.options.length - 1])
+            })
+            if (current) select.value = current
+          }
+        } catch (e) {}
+      }
+
+      select.addEventListener('change', () => {
+        localStorage.setItem('mc-active-bot', select.value)
+      })
+
+      loadBots()
+      setInterval(loadBots, 15000)
     })()
 
     $('textInput').addEventListener('input', () => {
