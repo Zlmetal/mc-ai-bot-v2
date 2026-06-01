@@ -1,15 +1,31 @@
 # 🎮 MC AI Bot V2
 
-基于 [MindCraft](https://github.com/mindcraft-bots/mindcraft) 的 Minecraft AI 玩家方案，支持多 Bot 管理、Web 聊天、语音交互、记忆持久化。
+[MindCraft](https://github.com/mindcraft-bots/mindcraft) 的二次开发项目。在 MindCraft 的 AI Bot 引擎基础上，增加了 Web 管理界面、多 Bot 支持、语音交互、记忆持久化等能力。
+
+## 与 MindCraft 的关系
+
+| 项目 | 定位 | 说明 |
+|------|------|------|
+| **MindCraft** | AI Bot 引擎 | 核心 AI 逻辑、Mineflayer 集成、模型调用、命令系统 |
+| **MC AI Bot V2** | 管理层 + 交互层 | Web 界面、多 Bot 管理、语音、记忆持久化、Docker 部署 |
+
+本项目**不修改 MindCraft 源码**，通过 Socket.IO API 和文件系统与 MindCraft 交互。MindCraft 更新时，本项目可直接拉取新镜像同步升级。
 
 ## 功能特性
 
-- **多 Bot 管理** — 支持创建多个 AI Bot，每个 Bot 独立配置名字、性格、模型
-- **Web 聊天界面** — 手机/电脑浏览器直接与游戏内 AI 对话
-- **语音交互** — 支持语音输入（STT）、语音合成（TTS）、实时通话、唤醒词
-- **记忆系统** — Bot 记忆持久化，重启不丢失
-- **高级设置** — 直接编辑 MindCraft settings.js，可视化配置所有参数
-- **视觉模型** — 支持配置 vision_model，AI 可分析游戏截图
+**MindCraft 提供的能力（底层）：**
+- Minecraft Java Edition AI 玩家
+- 支持多种 LLM（MiMo、GPT、Gemini、DeepSeek、Claude 等）
+- 自动对话、代码执行、视觉分析
+- 记忆系统（自动摘要、自动遗忘）
+
+**本项目增加的能力（上层）：**
+- **Web 管理界面** — 浏览器管理 Bot，手机随时访问
+- **多 Bot 支持** — 创建多个独立 Bot，各自配置名字、性格、模型
+- **语音交互** — STT 语音识别 + TTS 语音合成 + 实时通话
+- **记忆持久化** — Docker 重启不丢失记忆
+- **可视化配置** — Bot 管理、全局设置、高级设置三层配置体系
+- **Docker 一键部署** — 开箱即用，支持飞牛 NAS 等设备
 
 ## 快速开始（Docker）
 
@@ -84,14 +100,7 @@ pip install edge-tts faster-whisper
 
 ### 3. 配置
 
-复制并编辑配置文件：
-
-```bash
-mkdir -p data
-cp data/config.example.json data/config.json 2>/dev/null || true
-```
-
-编辑 `data/config.json`，配置你的 MC 服务器地址和 API Key：
+编辑 `data/config.json`，配置 MC 服务器地址和 API Key：
 
 ```json
 {
@@ -117,11 +126,7 @@ cp data/config.example.json data/config.json 2>/dev/null || true
 }
 ```
 
-### 4. 启动 Minecraft
-
-打开 Minecraft，进入单人世界，按 Esc → 对局域网开放，端口设为 `25565`。
-
-### 5. 启动 Bot
+### 4. 启动
 
 ```bash
 # Linux / macOS
@@ -131,56 +136,51 @@ cp data/config.example.json data/config.json 2>/dev/null || true
 node src/main.js
 ```
 
-首次启动会自动：
-- 生成 MindCraft 配置文件（`mindcraft/settings.js`）
-- 生成 Bot Profile（`mindcraft/profiles/你的名字.json`）
-- 同步 API Key
-
-### 6. 访问 Web 界面
-
 浏览器打开 `http://localhost:3000`
 
-### 目录结构
+## 配置体系
+
+三层配置，从简到繁：
+
+| 层级 | 页面 | 用途 |
+|------|------|------|
+| **全局设置** | settings.html | MC 服务器、Web 认证、TTS、唤醒词 |
+| **Bot 管理** | bots.html | 增删改查 Bot，配置性格、模型、视觉、记忆 |
+| **高级设置** | advanced.html | 直接编辑 MindCraft settings.js |
+
+## 目录结构
 
 ```
 mc-ai-bot-v2/
-├── src/                    # 后端代码
-│   ├── main.js             # 入口（Web 服务 + API + WebSocket）
-│   ├── memory.js           # 记忆系统
-│   ├── tts.js              # 语音合成
-│   └── stt.js              # 语音识别
-├── public/                 # 前端页面
-│   ├── index.html          # 聊天页面
-│   ├── settings.html       # 全局设置
-│   ├── bots.html           # Bot 管理
-│   ├── advanced.html       # 高级设置
-│   └── login.html          # 登录页面
-├── mindcraft/              # MindCraft 原项目（不修改）
-├── data/                   # 持久化数据
-│   ├── config.json         # 配置文件
-│   ├── profiles/           # Bot Profile 备份
-│   ├── bots/               # 记忆备份
-│   └── mindcraft-settings.js  # settings.js 备份
-├── start.sh                # 启动脚本（Linux）
+├── src/                         # 后端代码（本项目）
+│   ├── main.js                  # 入口：Web 服务 + API + WebSocket
+│   ├── memory.js                # SQLite 记忆系统
+│   ├── tts.js                   # 语音合成（Edge-TTS / MiMo TTS）
+│   └── stt.js                   # 语音识别（faster-whisper）
+├── public/                      # 前端页面（本项目）
+│   ├── index.html               # 聊天页面
+│   ├── settings.html            # 全局设置
+│   ├── bots.html                # Bot 管理
+│   ├── advanced.html            # 高级设置
+│   └── login.html               # 登录页面
+├── mindcraft/                   # MindCraft 原项目（不修改）
+│   ├── main.js                  # MindCraft 入口
+│   ├── profiles/                # Bot Profile
+│   ├── bots/                    # 记忆文件
+│   └── settings.js              # MindCraft 配置
+├── data/                        # 持久化数据（Docker volume）
+│   ├── config.json              # 本项目配置
+│   ├── profiles/                # Profile 备份
+│   ├── bots/                    # 记忆备份
+│   └── mindcraft-settings.js    # settings.js 备份
+├── Dockerfile                   # Docker 构建
+├── start.sh                     # 启动脚本
 └── package.json
 ```
 
-## 配置说明
+## 支持的 API
 
-### Bot 配置
-
-| 字段 | 说明 |
-|------|------|
-| `name` | Bot 在游戏内的名字，需与 Minecraft 玩家名一致 |
-| `personality` | 性格特征，如"勤劳、好奇、喜欢探索" |
-| `style` | 说话风格，如"说话简洁但有温度" |
-| `model` | AI 模型配置（api、model、url） |
-| `vision_model` | 视觉模型配置（可选，用于分析游戏截图） |
-| `apiKey` | 对应模型的 API Key |
-
-### 支持的 API
-
-MindCraft 支持多种 AI 模型提供商：
+MindCraft 支持多种 AI 模型：
 
 | 提供商 | 模型示例 | API 地址 |
 |--------|----------|----------|
@@ -188,37 +188,22 @@ MindCraft 支持多种 AI 模型提供商：
 | OpenAI | gpt-4o, gpt-4o-mini | https://api.openai.com/v1 |
 | DeepSeek | deepseek-chat | https://api.deepseek.com/v1 |
 | Google | gemini-2.5-pro | https://generativelanguage.googleapis.com/v1beta |
+| Anthropic | claude-sonnet-4-20250514 | https://api.anthropic.com/v1 |
 | Ollama | llama3, qwen2 | http://localhost:11434/v1 |
-
-### 环境变量
-
-| 变量 | 说明 | 默认值 |
-|------|------|--------|
-| `MC_HOST` | Minecraft 服务器地址 | host.docker.internal |
-| `MC_PORT` | Minecraft 服务器端口 | 25565 |
-| `MC_AUTH` | 认证方式（offline/microsoft） | offline |
-| `MC_VERSION` | Minecraft 版本 | 1.21.11 |
 
 ## 常用操作
 
 ### 添加新 Bot
 
-1. 打开 Web 界面 → 设置 → Bot 管理
-2. 点击「+ 添加 Bot」
-3. 填写名字、性格、模型、API Key
-4. 保存后 MindCraft 自动重启
-
-### 修改 Bot 性格
-
-1. 设置 → Bot 管理 → 点击 Bot 名字展开编辑
-2. 修改性格特征和说话风格
-3. 保存后立即生效
+1. Web 界面 → 设置 → Bot 管理 → + 添加 Bot
+2. 填写名字、性格、模型、API Key
+3. 保存后自动重启
 
 ### 开启视觉功能
 
-1. 高级设置 → `allow_vision` 设为 `false`（不需要 GPU 渲染）
-2. Bot 管理 → 为 Bot 配置 `vision_model`
-3. AI 即可通过截图分析游戏画面
+1. Bot 管理 → 编辑 Bot → 勾选「允许视觉」
+2. 确保 vision_model 已配置
+3. Docker 环境自动启用 Xvfb 虚拟显示 + Mesa 软件渲染
 
 ### 更新版本
 
@@ -236,19 +221,38 @@ npm install
 
 所有配置和记忆保存在 `data/` 目录，更新不会丢失。
 
+## 环境变量
+
+| 变量 | 说明 | 默认值 |
+|------|------|--------|
+| `MC_HOST` | Minecraft 服务器地址 | host.docker.internal |
+| `MC_PORT` | Minecraft 服务器端口 | 25565 |
+| `MC_AUTH` | 认证方式（offline/microsoft） | offline |
+| `MC_VERSION` | Minecraft 版本 | 1.21.11 |
+
 ## 常见问题
 
 **Q: Bot 无法连接 Minecraft 服务器？**
-A: 检查 MC_HOST 和 MC_PORT 是否正确。Docker 环境下，如果 MC 在宿主机运行，使用 `host.docker.internal`。
+A: 检查 MC_HOST 和 MC_PORT。Docker 环境下如果 MC 在宿主机运行，使用 `host.docker.internal`。
 
 **Q: API Key 报错？**
-A: 在设置页面或 Bot 管理页面重新填写 API Key。遮蔽显示的 `...` 不是真实 Key。
+A: 在 Bot 管理页面重新填写 API Key。遮蔽显示的 `...` 不是真实 Key。
 
 **Q: 记忆丢失？**
-A: 确保 `data/` 目录正确挂载（Docker）或存在（非 Docker）。记忆每 10 秒自动备份。
+A: 确保 `data/` 目录正确挂载（Docker）或存在（非 Docker）。记忆每 10 秒自动备份，容器停止时也会备份。
 
 **Q: 如何使用正版账号？**
 A: 设置 MC_AUTH 为 `microsoft`，Bot 名字需与微软账号的 Minecraft 名字一致。
+
+**Q: 视觉功能不工作？**
+A: Docker 环境需要 Xvfb + Mesa（已内置）。在 Bot 管理页面开启「允许视觉」并配置 vision_model。
+
+## 致谢
+
+- [MindCraft](https://github.com/mindcraft-bots/mindcraft) — AI Bot 引擎
+- [Mineflayer](https://prismarinejs.github.io/mineflayer/) — Minecraft 协议库
+- [Edge-TTS](https://github.com/rany2/edge-tts) — 微软语音合成
+- [faster-whisper](https://github.com/SYSTRAN/faster-whisper) — Whisper 语音识别
 
 ## License
 
