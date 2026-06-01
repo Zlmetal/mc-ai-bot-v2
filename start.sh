@@ -59,6 +59,14 @@ backup_bots() {
   fi
 }
 
+# 停止时备份
+cleanup() {
+  echo "[停止] 备份记忆..."
+  backup_bots
+  echo "[停止] 完成"
+}
+trap cleanup SIGTERM SIGINT EXIT
+
 # 生成 MindCraft 配置
 generate_settings() {
   # 重新读取最新的 bot 名字
