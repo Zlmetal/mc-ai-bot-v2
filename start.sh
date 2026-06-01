@@ -13,7 +13,8 @@ echo "[启动] MC 服务器: $MC_HOST:$MC_PORT"
 # 读取配置文件中的 bot 名字
 BOT_NAME="andrew"
 if [ -f /app/data/config.json ]; then
-  PARSED_NAME=$(python3 -c "import json; d=json.load(open('/app/data/config.json')); print(d.get('bot',{}).get('name','andrew'))" 2>/dev/null)
+  # 优先读取新格式 config.bots，兼容旧格式 config.bot
+  PARSED_NAME=$(python3 -c "import json; d=json.load(open('/app/data/config.json')); bots=d.get('bots',[]); print(bots[0]['name'] if bots else d.get('bot',{}).get('name','andrew'))" 2>/dev/null)
   if [ -n "$PARSED_NAME" ] && [ "$PARSED_NAME" != "None" ]; then
     BOT_NAME="$PARSED_NAME"
   fi
@@ -62,7 +63,7 @@ backup_bots() {
 generate_settings() {
   # 重新读取最新的 bot 名字
   if [ -f /app/data/config.json ]; then
-    local name=$(python3 -c "import json; d=json.load(open('/app/data/config.json')); print(d.get('bot',{}).get('name','andrew'))" 2>/dev/null)
+    local name=$(python3 -c "import json; d=json.load(open('/app/data/config.json')); bots=d.get('bots',[]); print(bots[0]['name'] if bots else d.get('bot',{}).get('name','andrew'))" 2>/dev/null)
     if [ -n "$name" ] && [ "$name" != "None" ]; then
       BOT_NAME="$name"
     fi
@@ -243,7 +244,7 @@ while true; do
     echo "========================================="
     # 重新读取 bot 名字
     if [ -f /app/data/config.json ]; then
-      NEW_NAME=$(python3 -c "import json; d=json.load(open('/app/data/config.json')); print(d.get('bot',{}).get('name','andrew'))" 2>/dev/null)
+      NEW_NAME=$(python3 -c "import json; d=json.load(open('/app/data/config.json')); bots=d.get('bots',[]); print(bots[0]['name'] if bots else d.get('bot',{}).get('name','andrew'))" 2>/dev/null)
       if [ -n "$NEW_NAME" ] && [ "$NEW_NAME" != "None" ] && [ "$NEW_NAME" != "$BOT_NAME" ]; then
         echo "[重启] Bot 名字从 $BOT_NAME 改为 $NEW_NAME"
         if [ -f "/app/mindcraft/profiles/$BOT_NAME.json" ]; then
