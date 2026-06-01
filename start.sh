@@ -137,21 +137,20 @@ SETTINGSEOF
     echo "[启动] 使用已有 settings.js"
   fi
 
-  # 确保关键字段正确（profiles、host、port）
+  # 确保关键字段正确（profiles 数组由 syncMindCraftConfig 维护，这里只更新 host/port/auth）
   if [ -f /app/mindcraft/settings.js ]; then
     python3 -c "
-import json, re
+import json
 with open('/app/mindcraft/settings.js', 'r') as f:
     content = f.read()
-# 提取 settings 对象
 start = content.find('{')
 end = content.rfind('}')
 if start != -1 and end > start:
     obj = json.loads(content[start:end+1])
-    obj['profiles'] = ['./profiles/$BOT_NAME.json']
     obj['host'] = '$MC_HOST'
     obj['port'] = $MC_PORT
     obj['auth'] = '$MC_AUTH'
+    # profiles 数组由 main.js 的 syncMindCraftConfig 管理，不覆盖
     new_content = 'const settings = ' + json.dumps(obj, indent=4, ensure_ascii=False) + '\nexport default settings\n'
     with open('/app/mindcraft/settings.js', 'w') as f:
         f.write(new_content)
