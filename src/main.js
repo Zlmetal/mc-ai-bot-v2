@@ -11,6 +11,7 @@ import { io } from 'socket.io-client'
 import path from 'path'
 import { fileURLToPath } from 'url'
 import fs from 'fs'
+import crypto from 'crypto'
 import MemorySystem from './memory.js'
 import TTSService from './tts.js'
 import STTService from './stt.js'
@@ -88,6 +89,25 @@ function saveConfig(config) {
 }
 
 const config = loadConfig()
+
+// 安全解析 JS 对象（替代 new Function）
+function safeParseJSObject(str) {
+  // 去掉 BOM、行注释、块注释
+  let cleaned = str.replace(/^\uFEFF/, '').replace(/\/\/.*$/gm, '').replace(/\/\*[\s\S]*?\*\//gs, '')
+  // 找到第一个 { 和最后一个 }
+  const start = cleaned.indexOf('{')
+  const end = cleaned.lastIndexOf('}')
+  if (start === -1 || end === -1 || end <= start) return null
+  let json = cleaned.substring(start, end + 1)
+  // 去掉尾逗号
+  json = json.replace(/,\s*([}\]])/g, '$1')
+  try {
+    return JSON.parse(json)
+  } catch (e) {
+    console.warn('[配置] JSON 解析失败:', e.message)
+    return null
+  }
+}
 
 // 从环境变量覆盖
 if (process.env.MC_HOST) config.mc.host = process.env.MC_HOST
@@ -206,7 +226,8 @@ function syncMindCraftConfig() {
       const start = raw.indexOf('{')
       const end = raw.lastIndexOf('}')
       if (start !== -1 && end > start) {
-        const settings = new Function('return ' + raw.substring(start, end + 1).replace(/,\s*}/g, '}'))()
+        const settings = safeParseJSObject(raw)
+        if (!settings) { console.error('[配置] settings.js 解析失败'); return }
         settings.profiles = profileNames
         const content = `const settings = ${JSON.stringify(settings, null, 4)}\nexport default settings\n`
         fs.writeFileSync(settingsPath, content, 'utf-8')
@@ -281,7 +302,7 @@ const SESSIONS = new Map()
 const SESSION_TTL = 7 * 24 * 60 * 60 * 1000
 
 function generateToken() {
-  return Math.random().toString(36).substring(2) + Math.random().toString(36).substring(2)
+  return crypto.randomUUID()
 }
 
 function parseCookies(req) {
@@ -519,7 +540,8 @@ app.get('/api/mindcraft-settings', (req, res) => {
     const start = content.indexOf('{')
     const end = content.lastIndexOf('}')
     if (start === -1 || end === -1 || end <= start) return res.json({ success: false, message: '无法解析 settings.js' })
-    const settings = new Function('return ' + content.substring(start, end + 1).replace(/,\s*}/g, '}'))()
+    const settings = safeParseJSObject(content)
+    if (!settings) return res.json({ success: false, message: '无法解析 settings.js' })
     res.json({ success: true, settings })
   } catch (err) {
     res.json({ success: false, message: err.message })
@@ -536,7 +558,7 @@ app.post('/api/mindcraft-settings', (req, res) => {
       try {
         let raw = fs.readFileSync(settingsPath, 'utf-8').replace(/^\uFEFF/, '').replace(/\/\/.*$/gm, '')
         const s = raw.indexOf('{'), e = raw.lastIndexOf('}')
-        if (s !== -1 && e > s) existing = new Function('return ' + raw.substring(s, e + 1).replace(/,\s*}/g, '}'))()
+        if (s !== -1 && e > s) existing = safeParseJSObject(raw) || {}
       } catch (e) { /* 空对象 */ }
     }
     const merged = { ...existing, ...newSettings }
