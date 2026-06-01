@@ -116,10 +116,28 @@ function syncMindCraftConfig() {
     const botModel = bot.model || { api: 'openai', model: 'mimo-v2.5', url: 'https://api.xiaomimimo.com/v1' }
     const botVisionModel = bot.vision_model || botModel
 
-    // conversing 内容（性格+风格）
+    // 从 SQLite 获取相关记忆
+    let memoryContext = ''
+    try {
+      const recentMemories = memory.getRecent('conversation', 5)
+      const relationships = memory.getAllRelationships()
+      const locations = memory.getAllLocations()
+      if (recentMemories.length > 0) {
+        memoryContext += '\n近期对话记录：'
+        recentMemories.forEach(m => { memoryContext += `\n- ${m.content}` })
+      }
+      if (relationships && relationships !== '暂无记录') {
+        memoryContext += `\n玩家关系：\n${relationships}`
+      }
+      if (locations && locations !== '暂无记录') {
+        memoryContext += `\n已知地点：\n${locations}`
+      }
+    } catch (e) { /* 忽略记忆读取失败 */ }
+
+    // conversing 内容（性格+风格+记忆）
     const conversingText = `你是 ${botName}，性格特征：${personality}。说话风格：${style}。\n\n` +
       `You are an AI Minecraft bot named $NAME that can converse with players, see, move, mine, build, and interact with the world by using commands.\n` +
-      `$SELF_PROMPT Be a friendly, casual, effective, and efficient robot. Be very brief in your responses, don't apologize constantly, don't give instructions or make lists unless asked, and don't refuse requests. Don't pretend to act, use commands immediately when requested. Do NOT say this: 'Sure, I've stopped. *stops*', instead say this: 'Sure, I'll stop. !stop'. Respond only as $NAME, never output '(FROM OTHER BOT)' or pretend to be someone else. If you have nothing to say or do, respond with an just a tab '\t'. This is extremely important to me, take a deep breath and have fun :)\nSummarized memory:'$MEMORY'\n$STATS\n$INVENTORY\n$COMMAND_DOCS\n$EXAMPLES\nConversation Begin:`
+      `$SELF_PROMPT Be a friendly, casual, effective, and efficient robot. Be very brief in your responses, don't apologize constantly, don't give instructions or make lists unless asked, and don't refuse requests. Don't pretend to act, use commands immediately when requested. Do NOT say this: 'Sure, I've stopped. *stops*', instead say this: 'Sure, I'll stop. !stop'. Respond only as $NAME, never output '(FROM OTHER BOT)' or pretend to be someone else. If you have nothing to say or do, respond with an just a tab '\t'. This is extremely important to me, take a deep breath and have fun :)\nSummarized memory:'$MEMORY'${memoryContext}\n$STATS\n$INVENTORY\n$COMMAND_DOCS\n$EXAMPLES\nConversation Begin:`
 
     const profilePath = path.join(profilesDir, `${botName}.json`)
 
@@ -155,10 +173,26 @@ function syncMindCraftConfig() {
 
     profileNames.push(`./profiles/${botName}.json`)
 
-    // 同步 API Key（每个 bot 独立的 key 写入 keys.json，最后一个生效）
-    const apiKey = bot.apiKey
-    if (apiKey && !apiKey.includes('...')) {
-      fs.writeFileSync(path.join(mcDir, 'keys.json'), JSON.stringify({ OPENAI_API_KEY: apiKey }, null, 2))
+    // 收集所有 bot 的 API Key
+    const apiKeys = {}
+    for (const b of enabledBots) {
+      const key = b.apiKey
+      if (key && !key.includes('...')) {
+        // 根据 API 地址判断 provider
+        const url = (b.model?.url || '').toLowerCase()
+        if (url.includes('google') || url.includes('gemini')) {
+          apiKeys.GEMINI_API_KEY = key
+        } else if (url.includes('anthropic') || url.includes('claude')) {
+          apiKeys.ANTHROPIC_API_KEY = key
+        } else {
+          // MiMo、OpenAI、DeepSeek 等 OpenAI 兼容 API
+          apiKeys.OPENAI_API_KEY = key
+        }
+      }
+    }
+    if (Object.keys(apiKeys).length > 0) {
+      fs.writeFileSync(path.join(mcDir, 'keys.json'), JSON.stringify(apiKeys, null, 2))
+      console.log(`[配置] 已同步 API Key: ${Object.keys(apiKeys).join(', ')}`)
     }
 
     console.log(`[配置] Bot: ${botName}, Model: ${botModel.model}`)
