@@ -147,6 +147,39 @@
               <input type="text" id="apikey-${bot.id}" value="${bot.apiKey || ''}" placeholder="留空则不修改">
               <div class="help-text">留空则保持原有 Key 不变</div>
             </div>
+            <div class="field">
+              <label>语言</label>
+              <input type="text" id="language-${bot.id}" value="${bot.language || 'zh-CN'}">
+              <div class="help-text">翻译目标语言，zh-CN=中文，en=英文</div>
+            </div>
+            <div class="field">
+              <label>启动问候语</label>
+              <input type="text" id="initMessage-${bot.id}" value="${bot.initMessage || ''}" placeholder="留空使用默认">
+            </div>
+            <div class="field-row">
+              <div class="field">
+                <label>最大消息数</label>
+                <input type="number" id="maxMessages-${bot.id}" value="${bot.maxMessages || 15}">
+              </div>
+              <div class="field">
+                <label>示例数量</label>
+                <input type="number" id="numExamples-${bot.id}" value="${bot.numExamples || 2}">
+              </div>
+            </div>
+            <div class="field-row">
+              <div class="field">
+                <label><input type="checkbox" id="allowVision-${bot.id}" ${bot.allowVision ? 'checked' : ''}> 允许视觉</label>
+                <div class="help-text">需要配置 vision_model</div>
+              </div>
+              <div class="field">
+                <label><input type="checkbox" id="loadMemory-${bot.id}" ${bot.loadMemory !== false ? 'checked' : ''}> 加载记忆</label>
+                <div class="help-text">重启后加载上次记忆</div>
+              </div>
+              <div class="field">
+                <label><input type="checkbox" id="speak-${bot.id}" ${bot.speak ? 'checked' : ''}> 语音播报</label>
+                <div class="help-text">需要配置 TTS</div>
+              </div>
+            </div>
             <div class="form-actions">
               <button class="btn btn-primary" onclick="saveBot('${bot.id}')">保存</button>
               <button class="btn btn-danger" onclick="deleteBot('${bot.id}', '${bot.name}')">删除</button>
@@ -189,7 +222,14 @@
           api: 'openai',
           model: $('model-' + id).value.trim(),
           url: $('url-' + id).value.trim()
-        }
+        },
+        language: $('language-' + id).value.trim(),
+        initMessage: $('initMessage-' + id).value.trim(),
+        maxMessages: parseInt($('maxMessages-' + id).value) || 15,
+        numExamples: parseInt($('numExamples-' + id).value) || 2,
+        allowVision: $('allowVision-' + id).checked,
+        loadMemory: $('loadMemory-' + id).checked,
+        speak: $('speak-' + id).checked
       }
       const apiKey = $('apikey-' + id).value.trim()
       if (apiKey) data.apiKey = apiKey
@@ -265,6 +305,21 @@
             <label>API Key</label>
             <input type="text" id="addApiKey" placeholder="填写 API Key">
           </div>
+          <div class="field">
+            <label>语言</label>
+            <input type="text" id="addLanguage" value="zh-CN">
+          </div>
+          <div class="field-row">
+            <div class="field">
+              <label><input type="checkbox" id="addAllowVision"> 允许视觉</label>
+            </div>
+            <div class="field">
+              <label><input type="checkbox" id="addLoadMemory" checked> 加载记忆</label>
+            </div>
+            <div class="field">
+              <label><input type="checkbox" id="addSpeak"> 语音播报</label>
+            </div>
+          </div>
           <div class="form-actions">
             <button class="btn btn-primary" onclick="addBot()">创建</button>
             <button class="btn btn-secondary" onclick="$('addForm').remove()">取消</button>
@@ -289,7 +344,11 @@
           model: $('addModel').value.trim(),
           url: $('addUrl').value.trim()
         },
-        apiKey: $('addApiKey').value.trim()
+        apiKey: $('addApiKey').value.trim(),
+        language: $('addLanguage').value.trim(),
+        allowVision: $('addAllowVision').checked,
+        loadMemory: $('addLoadMemory').checked,
+        speak: $('addSpeak').checked
       }
       if (!data.name) { showMessage('名字不能为空', 'error'); return }
 
