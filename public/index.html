@@ -157,7 +157,6 @@
         <option value="">选择玩家...</option>
       </select>
       <input type="text" id="playerCustom" class="player-input" placeholder="输入自定义ID" style="display:none;">
-      <button class="player-btn" id="playerConfirm" style="display:none;">✓</button>
     </div>
 
     <div class="mode-switch">
@@ -331,7 +330,6 @@
     (function initPlayerSelect() {
       const select = $('playerSelect')
       const custom = $('playerCustom')
-      const confirm = $('playerConfirm')
 
       // 从 localStorage 恢复
       const saved = localStorage.getItem('mc-player-name') || ''
@@ -348,34 +346,49 @@
         if (exists) {
           select.value = saved
         } else {
-          select.value = '__custom__'
-          custom.value = saved
-          custom.style.display = ''
-          confirm.style.display = ''
+          // 上次是自定义ID，切换到输入模式
+          switchToInput(saved)
         }
+      }
+
+      function switchToInput(value) {
+        select.style.display = 'none'
+        custom.style.display = ''
+        custom.value = value || ''
+        custom.focus()
+      }
+
+      function switchToSelect() {
+        custom.style.display = 'none'
+        select.style.display = ''
       }
 
       select.addEventListener('change', () => {
         if (select.value === '__custom__') {
-          custom.style.display = ''
-          confirm.style.display = ''
-          custom.focus()
+          switchToInput('')
         } else {
-          custom.style.display = 'none'
-          confirm.style.display = 'none'
           localStorage.setItem('mc-player-name', select.value)
         }
-      })
-
-      confirm.addEventListener('click', () => {
-        const name = custom.value.trim()
-        if (name) localStorage.setItem('mc-player-name', name)
       })
 
       custom.addEventListener('keydown', (e) => {
         if (e.key === 'Enter') {
           const name = custom.value.trim()
-          if (name) localStorage.setItem('mc-player-name', name)
+          if (name) {
+            localStorage.setItem('mc-player-name', name)
+            custom.blur()
+          }
+        } else if (e.key === 'Escape') {
+          switchToSelect()
+        }
+      })
+
+      custom.addEventListener('blur', () => {
+        const name = custom.value.trim()
+        if (name) {
+          localStorage.setItem('mc-player-name', name)
+        } else {
+          switchToSelect()
         }
       })
 
