@@ -1,6 +1,6 @@
 FROM node:20-slim
 
-# 安装依赖（包括 OpenGL 库和 python）
+# 安装依赖（包括 OpenGL 库、Xvfb 虚拟显示、Mesa 软件渲染）
 RUN apt-get update && apt-get install -y \
     python3 \
     python3-distutils \
@@ -10,11 +10,15 @@ RUN apt-get update && apt-get install -y \
     git \
     curl \
     iproute2 \
+    xvfb \
+    libgl1-mesa-dri \
     libgl1-mesa-glx \
     libglu1-mesa \
+    libegl1-mesa \
     libxi6 \
     libxrandr2 \
     libxxf86vm1 \
+    xauth \
     && ln -sf /usr/bin/python3 /usr/bin/python \
     && rm -rf /var/lib/apt/lists/*
 
