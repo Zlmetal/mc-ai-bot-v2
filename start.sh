@@ -2,6 +2,14 @@
 
 echo "[启动] MC AI Bot V2 启动中..."
 
+# 启动虚拟显示（支持 allow_vision）
+if command -v Xvfb &> /dev/null; then
+  export DISPLAY=:99
+  Xvfb :99 -screen 0 1024x768x24 -ac &> /dev/null &
+  export LIBGL_ALWAYS_SOFTWARE=1
+  echo "[启动] Xvfb 虚拟显示已启动"
+fi
+
 # 从环境变量读取配置
 MC_HOST=${MC_HOST:-host.docker.internal}
 MC_PORT=${MC_PORT:-25565}
