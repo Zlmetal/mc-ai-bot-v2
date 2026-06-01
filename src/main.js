@@ -136,24 +136,6 @@ function syncMindCraftConfig() {
     const botModel = bot.model || { api: 'openai', model: 'mimo-v2.5', url: 'https://api.xiaomimimo.com/v1' }
     const botVisionModel = bot.vision_model || botModel
 
-    // 从 SQLite 获取相关记忆
-    let memoryContext = ''
-    try {
-      const recentMemories = memory.getRecent('conversation', 5)
-      const relationships = memory.getAllRelationships()
-      const locations = memory.getAllLocations()
-      if (recentMemories.length > 0) {
-        memoryContext += '\n近期对话记录：'
-        recentMemories.forEach(m => { memoryContext += `\n- ${m.content}` })
-      }
-      if (relationships && relationships !== '暂无记录') {
-        memoryContext += `\n玩家关系：\n${relationships}`
-      }
-      if (locations && locations !== '暂无记录') {
-        memoryContext += `\n已知地点：\n${locations}`
-      }
-    } catch (e) { /* 忽略记忆读取失败 */ }
-
     // 获取 per-bot 设置
     const botLanguage = bot.language || 'zh-CN'
     const botMaxMessages = bot.maxMessages || 15
@@ -166,7 +148,7 @@ function syncMindCraftConfig() {
     // conversing 内容（性格+风格+记忆）
     const conversingText = `你是 ${botName}，性格特征：${personality}。说话风格：${style}。\n\n` +
       `You are an AI Minecraft bot named $NAME that can converse with players, see, move, mine, build, and interact with the world by using commands.\n` +
-      `$SELF_PROMPT Be a friendly, casual, effective, and efficient robot. Be very brief in your responses, don't apologize constantly, don't give instructions or make lists unless asked, and don't refuse requests. Don't pretend to act, use commands immediately when requested. Do NOT say this: 'Sure, I've stopped. *stops*', instead say this: 'Sure, I'll stop. !stop'. Respond only as $NAME, never output '(FROM OTHER BOT)' or pretend to be someone else. If you have nothing to say or do, respond with an just a tab '\t'. This is extremely important to me, take a deep breath and have fun :)\nSummarized memory:'$MEMORY'${memoryContext}\n$STATS\n$INVENTORY\n$COMMAND_DOCS\n$EXAMPLES\nConversation Begin:`
+      `$SELF_PROMPT Be a friendly, casual, effective, and efficient robot. Be very brief in your responses, don't apologize constantly, don't give instructions or make lists unless asked, and don't refuse requests. Don't pretend to act, use commands immediately when requested. Do NOT say this: 'Sure, I've stopped. *stops*', instead say this: 'Sure, I'll stop. !stop'. Respond only as $NAME, never output '(FROM OTHER BOT)' or pretend to be someone else. If you have nothing to say or do, respond with an just a tab '\t'. This is extremely important to me, take a deep breath and have fun :)\nSummarized memory:'$MEMORY'\n$STATS\n$INVENTORY\n$COMMAND_DOCS\n$EXAMPLES\nConversation Begin:`
 
     const profilePath = path.join(profilesDir, `${botName}.json`)
 
