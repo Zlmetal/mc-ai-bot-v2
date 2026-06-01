@@ -154,6 +154,15 @@ function syncMindCraftConfig() {
       }
     } catch (e) { /* 忽略记忆读取失败 */ }
 
+    // 获取 per-bot 设置
+    const botLanguage = bot.language || 'zh-CN'
+    const botMaxMessages = bot.maxMessages || 15
+    const botNumExamples = bot.numExamples || 2
+    const botAllowVision = bot.allowVision ? 'true' : 'false'
+    const botLoadMemory = bot.loadMemory !== false ? 'true' : 'false'
+    const botSpeak = bot.speak ? 'true' : 'false'
+    const botInitMessage = bot.initMessage || ''
+
     // conversing 内容（性格+风格+记忆）
     const conversingText = `你是 ${botName}，性格特征：${personality}。说话风格：${style}。\n\n` +
       `You are an AI Minecraft bot named $NAME that can converse with players, see, move, mine, build, and interact with the world by using commands.\n` +
@@ -166,7 +175,10 @@ function syncMindCraftConfig() {
         name: botName,
         model: botModel,
         vision_model: botVisionModel,
-        conversing: conversingText
+        conversing: conversingText,
+        cooldown: 3000,
+        max_messages: botMaxMessages,
+        num_examples: botNumExamples
       }
       fs.writeFileSync(profilePath, JSON.stringify(profile, null, 2))
       console.log(`[配置] 创建 profile: ${botName}.json`)
@@ -174,7 +186,8 @@ function syncMindCraftConfig() {
       try {
         const existing = JSON.parse(fs.readFileSync(profilePath, 'utf-8'))
         existing.conversing = conversingText
-        // 更新 model（如果 bot 配置了）
+        existing.max_messages = botMaxMessages
+        existing.num_examples = botNumExamples
         if (bot.model) existing.model = bot.model
         if (bot.vision_model) existing.vision_model = bot.vision_model
         fs.writeFileSync(profilePath, JSON.stringify(existing, null, 2))
@@ -218,7 +231,7 @@ function syncMindCraftConfig() {
     console.log(`[配置] Bot: ${botName}, Model: ${botModel.model}`)
   }
 
-  // 更新 settings.js 的 profiles 数组
+  // 更新 settings.js 的 profiles 数组和 per-bot 设置
   const settingsPath = path.join(mcDir, 'settings.js')
   if (fs.existsSync(settingsPath)) {
     try {
@@ -229,6 +242,17 @@ function syncMindCraftConfig() {
         const settings = safeParseJSObject(raw)
         if (!settings) { console.error('[配置] settings.js 解析失败'); return }
         settings.profiles = profileNames
+        // 应用第一个 bot 的 per-bot 设置到 settings.js
+        const primaryBot = enabledBots[0]
+        if (primaryBot) {
+          settings.language = primaryBot.language || 'zh-CN'
+          settings.load_memory = primaryBot.loadMemory !== false
+          settings.speak = primaryBot.speak ? (primaryBot.speak_model || 'system') : false
+          settings.allow_vision = primaryBot.allowVision || false
+          if (primaryBot.initMessage) settings.init_message = primaryBot.initMessage
+          if (primaryBot.maxMessages) settings.max_messages = primaryBot.maxMessages
+          if (primaryBot.numExamples) settings.num_examples = primaryBot.numExamples
+        }
         const content = `const settings = ${JSON.stringify(settings, null, 4)}\nexport default settings\n`
         fs.writeFileSync(settingsPath, content, 'utf-8')
         // 备份
