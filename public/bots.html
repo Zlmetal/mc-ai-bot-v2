@@ -135,8 +135,14 @@
               <textarea id="style-${bot.id}">${bot.style || ''}</textarea>
             </div>
             <div class="field">
-              <label>模型</label>
+              <label>对话模型</label>
               <input type="text" id="model-${bot.id}" value="${bot.model?.model || 'mimo-v2.5'}">
+              <div class="help-text">用于聊天对话的 AI 模型</div>
+            </div>
+            <div class="field">
+              <label>视觉模型</label>
+              <input type="text" id="visionModel-${bot.id}" value="${bot.vision_model?.model || bot.model?.model || 'mimo-v2.5'}">
+              <div class="help-text">用于分析游戏截图的模型，需支持图像理解</div>
             </div>
             <div class="field">
               <label>API 地址</label>
@@ -220,7 +226,7 @@
         },
         vision_model: {
           api: 'openai',
-          model: $('model-' + id).value.trim(),
+          model: $('visionModel-' + id).value.trim(),
           url: $('url-' + id).value.trim()
         },
         language: $('language-' + id).value.trim(),
@@ -294,8 +300,12 @@
             <textarea id="addStyle" placeholder="如：说话简洁但有温度"></textarea>
           </div>
           <div class="field">
-            <label>模型</label>
+            <label>对话模型</label>
             <input type="text" id="addModel" value="mimo-v2.5">
+          </div>
+          <div class="field">
+            <label>视觉模型</label>
+            <input type="text" id="addVisionModel" value="mimo-v2.5">
           </div>
           <div class="field">
             <label>API 地址</label>
@@ -341,7 +351,7 @@
         },
         vision_model: {
           api: 'openai',
-          model: $('addModel').value.trim(),
+          model: $('addVisionModel').value.trim(),
           url: $('addUrl').value.trim()
         },
         apiKey: $('addApiKey').value.trim(),
