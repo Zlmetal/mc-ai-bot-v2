@@ -30,10 +30,13 @@ WORKDIR /app
 # 克隆 MindCraft
 RUN git clone https://github.com/mindcraft-bots/mindcraft.git mindcraft
 
-# 安装 MindCraft 依赖（忽略 gl 模块的编译错误）
+# 安装 MindCraft 依赖
 WORKDIR /app/mindcraft
 RUN npm install --ignore-scripts || true
-RUN npm rebuild || true
+# 编译 gl 原生模块（需要 Mesa OpenGL 头文件）
+RUN npm rebuild gl 2>&1 || echo "[warn] gl 编译失败，视觉功能可能不可用"
+# 应用补丁
+RUN npx patch-package || true
 
 # 打补丁：MindServer 绑定地址 localhost → 0.0.0.0（修复 Docker 内 IPv4/IPv6 问题）
 RUN sed -i "s/const host = 'localhost'/const host = '0.0.0.0'/g" src/mindcraft/mindserver.js || true
