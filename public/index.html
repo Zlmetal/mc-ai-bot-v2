@@ -327,6 +327,7 @@
     }
 
     // ========== 玩家 ID 选择 ==========
+    try {
     (function initPlayerSelect() {
       const select = $('playerSelect')
       const custom = $('playerCustom')
@@ -387,8 +388,10 @@
       // 定期刷新
       setInterval(() => window._fetchPlayers(), 30000)
     })()
+    } catch (e) { console.warn('[玩家选择] 初始化失败:', e) }
 
     // ========== Bot 选择 ==========
+    try {
     ;(function initBotSelect() {
       const select = $('botSelect')
       if (!select) return
@@ -422,6 +425,7 @@
       loadBots()
       setInterval(loadBots, 15000)
     })()
+    } catch (e) { console.warn('[Bot选择] 初始化失败:', e) }
 
     $('textInput').addEventListener('input', () => {
       $('btnSend').disabled = !$('textInput').value.trim()
