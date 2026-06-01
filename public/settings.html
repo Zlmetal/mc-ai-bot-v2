@@ -238,21 +238,14 @@
       <div class="help-text">修改后需要重新登录</div>
     </div>
 
-    <!-- AI 人设 -->
-    <div class="section">
-      <div class="section-title">👤 AI 人设</div>
-      <div class="field">
-        <label>名字（需与 Minecraft 账号名一致）</label>
-        <input type="text" id="botName" value="andrew">
-        <div class="help-text">必须与 Minecraft 账户名完全一致，否则无法登录服务器</div>
-      </div>
-      <div class="field">
-        <label>性格特征</label>
-        <input type="text" id="botPersonality" value="勤劳、好奇、有点话多、喜欢探索">
-      </div>
-      <div class="field">
-        <label>说话风格</label>
-        <textarea id="botStyle" rows="2">说话简洁但有温度，偶尔开玩笑，用中文</textarea>
+    <!-- Bot 管理入口 -->
+    <div class="section" style="cursor: pointer;" onclick="location.href='/bots.html'">
+      <div style="padding: 14px; display: flex; align-items: center; justify-content: space-between;">
+        <div>
+          <div style="font-weight: 600; font-size: 14px;">🤖 Bot 管理</div>
+          <div style="font-size: 12px; color: #666; margin-top: 2px;">管理多个 AI Bot 的名字、性格、模型配置</div>
+        </div>
+        <span style="color: #666;">→</span>
       </div>
     </div>
 
@@ -404,9 +397,7 @@
         // 触发模式切换显示
         $('edgeSection').style.display = ($('ttsMode').value === 'edge') ? 'block' : 'none'
         $('mimoSection').style.display = ($('ttsMode').value === 'mimo') ? 'block' : 'none'
-        $('botName').value = config.bot?.name || 'andrew'
-        $('botPersonality').value = config.bot?.personality || ''
-        $('botStyle').value = config.bot?.style || ''
+
         $('webUsername').value = config.web?.username || 'admin'
         // 唤醒词
         $('wakeEnabled').checked = config.wake?.enabled || false
@@ -441,7 +432,7 @@
           mimoModel: $('ttsMimoModel').value,
           mimoVoice: $('ttsMimoVoice').value
         },
-        bot: { name: $('botName').value || 'andrew', personality: $('botPersonality').value, style: $('botStyle').value },
+
         web: { username: $('webUsername').value || 'admin' },
         wake: { enabled: $('wakeEnabled').checked, word: $('wakeWord').value }
       }
