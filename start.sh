@@ -137,10 +137,23 @@ SETTINGSEOF
     echo "[启动] 使用已有 settings.js"
   fi
 
-  # 确保关键字段正确（profiles 数组由 syncMindCraftConfig 维护，这里只更新 host/port/auth）
+  # 确保关键字段正确
   if [ -f /app/mindcraft/settings.js ]; then
     python3 -c "
-import json
+import json, os
+# 读取 config.json 获取 bot 名字
+bots = []
+config_path = '/app/data/config.json'
+if os.path.exists(config_path):
+    with open(config_path, 'r') as f:
+        cfg = json.load(f)
+    if 'bots' in cfg:
+        bots = [b['name'] for b in cfg['bots'] if b.get('enabled', True)]
+    elif 'bot' in cfg:
+        bots = [cfg['bot'].get('name', 'andrew')]
+if not bots:
+    bots = ['andrew']
+# 读取并更新 settings.js
 with open('/app/mindcraft/settings.js', 'r') as f:
     content = f.read()
 start = content.find('{')
@@ -150,7 +163,7 @@ if start != -1 and end > start:
     obj['host'] = '$MC_HOST'
     obj['port'] = $MC_PORT
     obj['auth'] = '$MC_AUTH'
-    # profiles 数组由 main.js 的 syncMindCraftConfig 管理，不覆盖
+    obj['profiles'] = ['./profiles/' + name + '.json' for name in bots]
     new_content = 'const settings = ' + json.dumps(obj, indent=4, ensure_ascii=False) + '\nexport default settings\n'
     with open('/app/mindcraft/settings.js', 'w') as f:
         f.write(new_content)
