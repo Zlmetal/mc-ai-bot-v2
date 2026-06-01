@@ -65,33 +65,23 @@
       // === Bot 配置 ===
       { section: '🤖 Bot 配置' },
       { key: 'base_profile', label: '基础人设', type: 'select', default: 'assistant', options: ['assistant', 'survival', 'creative', 'god_mode'], help: 'assistant=助手模式，survival=生存模式，creative=创造模式，god_mode=上帝模式' },
-      { key: 'load_memory', label: '加载记忆', type: 'checkbox', default: false, help: '是否加载上次会话的记忆（聊天记录、学到的知识等）' },
-      { key: 'init_message', label: '启动问候语', type: 'text', default: '大家好！我是andrew', help: 'Bot 加入游戏时发送的第一条消息' },
       { key: 'only_chat_with', label: '只与指定玩家聊天', type: 'json', default: '[]', help: '限制 Bot 只听/回复指定玩家。留空 [] 表示对所有人可见。如 ["玩家A","玩家B"]' },
-
-      // === 语音设置 ===
-      { section: '🔊 语音设置' },
-      { key: 'speak', label: '启用语音', type: 'checkbox', default: false, help: '是否让 Bot 通过 TTS 说话。需要在 profile 中配置 speak_model' },
 
       // === 聊天设置 ===
       { section: '💬 聊天设置' },
       { key: 'chat_ingame', label: '游戏内显示聊天', type: 'checkbox', default: true, help: 'Bot 的回复是否显示在 Minecraft 聊天栏中' },
-      { key: 'language', label: '语言', type: 'text', default: 'zh-CN', help: '翻译目标语言代码。zh-CN=中文，en=英文。Bot 会自动翻译成此语言' },
       { key: 'narrate_behavior', label: '播报行为', type: 'checkbox', default: true, help: 'Bot 执行简单操作时自动聊天（如"正在捡起物品！"）' },
       { key: 'chat_bot_messages', label: 'Bot 间聊天', type: 'checkbox', default: true, help: '多个 Bot 之间是否互相聊天' },
 
       // === 安全与代码 ===
       { section: '🛡️ 安全与代码执行' },
       { key: 'allow_insecure_coding', label: '允许执行代码', type: 'checkbox', default: false, help: '⚠️ 危险：允许 LLM 在你的电脑上写并执行代码。仅在可信环境下开启' },
-      { key: 'allow_vision', label: '允许视觉功能', type: 'checkbox', default: false, help: '允许视觉模型分析游戏截图。需要在 profile 中配置 vision_model' },
       { key: 'code_timeout_mins', label: '代码超时（分钟）', type: 'number', default: -1, help: '代码最长运行时间（分钟）。-1 表示无限制' },
       { key: 'blocked_actions', label: '禁用的命令', type: 'json', default: '["!checkBlueprint","!checkBlueprintLevel","!getBlueprint","!getBlueprintLevel"]', help: '禁用的 Bot 命令列表，如 ["!setMode"]' },
 
       // === 模型提示设置 ===
       { section: '📊 模型提示设置' },
       { key: 'relevant_docs_count', label: '相关文档数量', type: 'number', default: 5, help: '为模型选取的相关代码文档数量。-1 表示全部' },
-      { key: 'max_messages', label: '最大消息数', type: 'number', default: 15, help: '上下文中保留的最大消息数量' },
-      { key: 'num_examples', label: '示例数量', type: 'number', default: 2, help: '提供给模型的示例对话数量' },
       { key: 'max_commands', label: '最大命令数', type: 'number', default: -1, help: '单次回复中可使用的最大命令数。-1 表示无限制' },
       { key: 'show_command_syntax', label: '命令语法显示', type: 'select', default: 'full', options: ['full', 'shortened', 'none'], help: 'full=完整语法，shortened=简短，none=不显示' },
 
