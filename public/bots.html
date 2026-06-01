@@ -1,0 +1,316 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+  <title>Bot 管理 - MC AI Bot</title>
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; background: #0a0a0a; color: #e0e0e0; min-height: 100vh; padding-bottom: 80px; }
+    .header { padding: 14px 16px; background: #1a1a2e; border-bottom: 1px solid #333; display: flex; align-items: center; gap: 12px; position: sticky; top: 0; z-index: 10; }
+    .header h1 { font-size: 16px; font-weight: 600; flex: 1; }
+    .back-btn { color: #888; text-decoration: none; font-size: 18px; }
+    .container { max-width: 600px; margin: 0 auto; padding: 16px; }
+    .message { padding: 10px 14px; border-radius: 6px; margin-bottom: 12px; font-size: 13px; }
+    .message.success { background: rgba(76,175,80,0.15); color: #4caf50; }
+    .message.error { background: rgba(244,67,54,0.15); color: #f44336; }
+    .message.info { background: rgba(33,150,243,0.15); color: #2196f3; }
+
+    /* Bot 卡片 */
+    .bot-card { background: #1e1e2e; border-radius: 10px; border: 1px solid #333; margin-bottom: 12px; overflow: hidden; }
+    .bot-card-header { padding: 14px; display: flex; align-items: center; gap: 12px; cursor: pointer; }
+    .bot-avatar { width: 40px; height: 40px; border-radius: 50%; background: #2563eb; display: flex; align-items: center; justify-content: center; font-size: 18px; flex-shrink: 0; }
+    .bot-info { flex: 1; min-width: 0; }
+    .bot-name { font-weight: 600; font-size: 15px; }
+    .bot-model { font-size: 12px; color: #888; margin-top: 2px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+    .bot-status { display: flex; align-items: center; gap: 6px; }
+    .status-dot { width: 8px; height: 8px; border-radius: 50%; background: #555; }
+    .status-dot.online { background: #4caf50; }
+    .status-text { font-size: 11px; color: #888; }
+
+    /* 编辑表单 */
+    .bot-form { padding: 0 14px 14px; display: none; border-top: 1px solid #333; }
+    .bot-form.active { display: block; }
+    .field { margin-top: 10px; }
+    .field label { display: block; font-size: 12px; color: #aaa; margin-bottom: 4px; }
+    .field input, .field select, .field textarea { width: 100%; padding: 8px 10px; background: #0d0d1a; border: 1px solid #333; border-radius: 6px; color: white; font-size: 13px; outline: none; }
+    .field input:focus, .field select:focus, .field textarea:focus { border-color: #2563eb; }
+    .field textarea { min-height: 50px; resize: vertical; font-family: inherit; }
+    .field .help-text { font-size: 11px; color: #666; margin-top: 2px; }
+    .field-row { display: flex; gap: 10px; }
+    .field-row .field { flex: 1; }
+    .form-actions { display: flex; gap: 8px; margin-top: 12px; }
+    .btn { padding: 8px 16px; border: none; border-radius: 6px; font-size: 13px; cursor: pointer; }
+    .btn-primary { background: #2563eb; color: white; }
+    .btn-primary:active { background: #1d4ed8; }
+    .btn-danger { background: #dc2626; color: white; }
+    .btn-danger:active { background: #b91c1c; }
+    .btn-secondary { background: #333; color: #e0e0e0; }
+    .btn-secondary:active { background: #444; }
+    .btn-toggle { padding: 4px 10px; font-size: 11px; border-radius: 12px; }
+    .btn-toggle.on { background: rgba(76,175,80,0.2); color: #4caf50; }
+    .btn-toggle.off { background: rgba(244,67,54,0.2); color: #f44336; }
+
+    /* 添加按钮 */
+    .btn-add { position: fixed; bottom: 20px; left: 50%; transform: translateX(-50%); padding: 12px 32px; background: #2563eb; color: white; border: none; border-radius: 8px; font-size: 15px; cursor: pointer; z-index: 10; box-shadow: 0 4px 12px rgba(37,99,235,0.4); }
+    .btn-add:active { transform: translateX(-50%) scale(0.96); }
+
+    .loading { text-align: center; padding: 40px; color: #666; }
+  </style>
+</head>
+<body>
+  <div class="header">
+    <a href="/settings.html" class="back-btn">←</a>
+    <h1>🤖 Bot 管理</h1>
+  </div>
+
+  <div class="container" id="container">
+    <div class="loading">加载中...</div>
+  </div>
+
+  <button class="btn-add" id="btnAdd" onclick="showAddForm()">+ 添加 Bot</button>
+
+  <script>
+    const $ = id => document.getElementById(id)
+    let bots = []
+
+    function showMessage(text, type) {
+      const existing = document.querySelector('.message')
+      if (existing) existing.remove()
+      const msg = document.createElement('div')
+      msg.className = `message ${type}`
+      msg.textContent = text
+      $('container').insertBefore(msg, $('container').firstChild)
+      setTimeout(() => msg.remove(), 4000)
+    }
+
+    async function loadBots() {
+      try {
+        const r = await fetch('/api/bots')
+        const d = await r.json()
+        if (d.success) {
+          bots = d.bots
+          renderBots()
+        }
+      } catch (e) {
+        $('container').innerHTML = `<div class="message error">加载失败: ${e.message}</div>`
+      }
+    }
+
+    function renderBots() {
+      const container = $('container')
+      // 保留添加表单（如果存在）
+      const addForm = $('addForm')
+      container.innerHTML = ''
+      if (addForm) container.appendChild(addForm)
+
+      for (const bot of bots) {
+        const card = document.createElement('div')
+        card.className = 'bot-card'
+        card.innerHTML = `
+          <div class="bot-card-header" onclick="toggleForm('${bot.id}')">
+            <div class="bot-avatar">${bot.name.charAt(0).toUpperCase()}</div>
+            <div class="bot-info">
+              <div class="bot-name">${bot.name}</div>
+              <div class="bot-model">${bot.model?.model || '未配置'}</div>
+            </div>
+            <div class="bot-status">
+              <div class="status-dot ${bot.online ? 'online' : ''}"></div>
+              <span class="status-text">${bot.online ? '在线' : '离线'}</span>
+              <button class="btn btn-toggle ${bot.enabled !== false ? 'on' : 'off'}" onclick="event.stopPropagation(); toggleBot('${bot.id}')">${bot.enabled !== false ? '启用' : '禁用'}</button>
+            </div>
+          </div>
+          <div class="bot-form" id="form-${bot.id}">
+            <div class="field">
+              <label>名字</label>
+              <input type="text" id="name-${bot.id}" value="${bot.name}">
+              <div class="help-text">游戏内显示的名字，需与 Minecraft 玩家名一致</div>
+            </div>
+            <div class="field">
+              <label>性格特征</label>
+              <textarea id="personality-${bot.id}">${bot.personality || ''}</textarea>
+            </div>
+            <div class="field">
+              <label>说话风格</label>
+              <textarea id="style-${bot.id}">${bot.style || ''}</textarea>
+            </div>
+            <div class="field">
+              <label>模型</label>
+              <input type="text" id="model-${bot.id}" value="${bot.model?.model || 'mimo-v2.5'}">
+            </div>
+            <div class="field">
+              <label>API 地址</label>
+              <input type="text" id="url-${bot.id}" value="${bot.model?.url || 'https://api.xiaomimimo.com/v1'}">
+            </div>
+            <div class="field">
+              <label>API Key</label>
+              <input type="text" id="apikey-${bot.id}" value="${bot.apiKey || ''}" placeholder="留空则不修改">
+              <div class="help-text">留空则保持原有 Key 不变</div>
+            </div>
+            <div class="form-actions">
+              <button class="btn btn-primary" onclick="saveBot('${bot.id}')">保存</button>
+              <button class="btn btn-danger" onclick="deleteBot('${bot.id}', '${bot.name}')">删除</button>
+            </div>
+          </div>
+        `
+        container.appendChild(card)
+      }
+    }
+
+    function toggleForm(id) {
+      const form = $('form-' + id)
+      if (form) form.classList.toggle('active')
+    }
+
+    async function toggleBot(id) {
+      try {
+        const r = await fetch(`/api/bots/${id}/toggle`, { method: 'POST' })
+        const d = await r.json()
+        if (d.success) {
+          showMessage(d.enabled ? '已启用' : '已禁用', 'success')
+          loadBots()
+        } else {
+          showMessage(d.message, 'error')
+        }
+      } catch (e) { showMessage(e.message, 'error') }
+    }
+
+    async function saveBot(id) {
+      const data = {
+        name: $('name-' + id).value.trim(),
+        personality: $('personality-' + id).value.trim(),
+        style: $('style-' + id).value.trim(),
+        model: {
+          api: 'openai',
+          model: $('model-' + id).value.trim(),
+          url: $('url-' + id).value.trim()
+        },
+        vision_model: {
+          api: 'openai',
+          model: $('model-' + id).value.trim(),
+          url: $('url-' + id).value.trim()
+        }
+      }
+      const apiKey = $('apikey-' + id).value.trim()
+      if (apiKey) data.apiKey = apiKey
+
+      if (!data.name) { showMessage('名字不能为空', 'error'); return }
+
+      try {
+        const r = await fetch(`/api/bots/${id}`, {
+          method: 'PUT',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(data)
+        })
+        const d = await r.json()
+        if (d.success) {
+          showMessage('已保存，MindCraft 正在重启', 'success')
+          loadBots()
+        } else {
+          showMessage(d.message, 'error')
+        }
+      } catch (e) { showMessage(e.message, 'error') }
+    }
+
+    async function deleteBot(id, name) {
+      if (!confirm(`确定删除 Bot "${name}"？`)) return
+      try {
+        const r = await fetch(`/api/bots/${id}`, { method: 'DELETE' })
+        const d = await r.json()
+        if (d.success) {
+          showMessage(d.message, 'success')
+          loadBots()
+        } else {
+          showMessage(d.message, 'error')
+        }
+      } catch (e) { showMessage(e.message, 'error') }
+    }
+
+    function showAddForm() {
+      // 检查是否已有添加表单
+      if ($('addForm')) { $('addForm').remove(); return }
+
+      const form = document.createElement('div')
+      form.id = 'addForm'
+      form.className = 'bot-card'
+      form.innerHTML = `
+        <div class="bot-card-header">
+          <div class="bot-avatar" style="background: #16a34a;">+</div>
+          <div class="bot-info">
+            <div class="bot-name">添加新 Bot</div>
+          </div>
+        </div>
+        <div class="bot-form active">
+          <div class="field">
+            <label>名字</label>
+            <input type="text" id="addName" placeholder="Bot 游戏内名字">
+          </div>
+          <div class="field">
+            <label>性格特征</label>
+            <textarea id="addPersonality" placeholder="如：勤劳、好奇、喜欢探索"></textarea>
+          </div>
+          <div class="field">
+            <label>说话风格</label>
+            <textarea id="addStyle" placeholder="如：说话简洁但有温度"></textarea>
+          </div>
+          <div class="field">
+            <label>模型</label>
+            <input type="text" id="addModel" value="mimo-v2.5">
+          </div>
+          <div class="field">
+            <label>API 地址</label>
+            <input type="text" id="addUrl" value="https://api.xiaomimimo.com/v1">
+          </div>
+          <div class="field">
+            <label>API Key</label>
+            <input type="text" id="addApiKey" placeholder="填写 API Key">
+          </div>
+          <div class="form-actions">
+            <button class="btn btn-primary" onclick="addBot()">创建</button>
+            <button class="btn btn-secondary" onclick="$('addForm').remove()">取消</button>
+          </div>
+        </div>
+      `
+      $('container').insertBefore(form, $('container').firstChild)
+    }
+
+    async function addBot() {
+      const data = {
+        name: $('addName').value.trim(),
+        personality: $('addPersonality').value.trim(),
+        style: $('addStyle').value.trim(),
+        model: {
+          api: 'openai',
+          model: $('addModel').value.trim(),
+          url: $('addUrl').value.trim()
+        },
+        vision_model: {
+          api: 'openai',
+          model: $('addModel').value.trim(),
+          url: $('addUrl').value.trim()
+        },
+        apiKey: $('addApiKey').value.trim()
+      }
+      if (!data.name) { showMessage('名字不能为空', 'error'); return }
+
+      try {
+        const r = await fetch('/api/bots', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(data)
+        })
+        const d = await r.json()
+        if (d.success) {
+          showMessage(`Bot "${data.name}" 已创建`, 'success')
+          $('addForm').remove()
+          loadBots()
+        } else {
+          showMessage(d.message, 'error')
+        }
+      } catch (e) { showMessage(e.message, 'error') }
+    }
+
+    loadBots()
+  </script>
+</body>
+</html>
