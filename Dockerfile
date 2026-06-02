@@ -19,7 +19,7 @@ RUN apt-get update && apt-get install -y \
     libxrandr2 \
     libxxf86vm1 \
     xauth \
-    intel-media-va-driver-non-free \
+    intel-media-va-driver \
     vainfo \
     && ln -sf /usr/bin/python3 /usr/bin/python \
     && rm -rf /var/lib/apt/lists/*
