@@ -37,6 +37,8 @@ WORKDIR /app/mindcraft
 RUN npm install --ignore-scripts || true
 # 编译原生模块（需要 Mesa OpenGL 头文件）
 RUN npm rebuild canvas gl 2>&1 || echo "[warn] 原生模块编译失败，视觉功能可能不可用"
+# 安装 minecraft-assets（用于生成纹理）
+RUN npm install minecraft-assets || true
 # 应用补丁
 RUN npx patch-package || true
 
@@ -45,8 +47,11 @@ RUN sed -i "s/const host = 'localhost'/const host = '0.0.0.0'/g" src/mindcraft/m
 
 # 打补丁：prismarine-viewer 添加 1.21.11 版本支持
 RUN node -e "const fs=require('fs');const f='node_modules/prismarine-viewer/viewer/lib/version.js';let c=fs.readFileSync(f,'utf8');c=c.replace(\"'1.21.4'\",\"'1.21.4', '1.21.11'\");fs.writeFileSync(f,c)" || true
-# 复制纹理文件（1.21.11 使用 1.21.4 的纹理）
-RUN cp node_modules/prismarine-viewer/public/textures/1.21.4.png node_modules/prismarine-viewer/public/textures/1.21.11.png 2>/dev/null || true
+# 生成 1.21.11 纹理 atlas
+COPY generate-textures.js ./
+RUN node generate-textures.js 1.21.11 || echo "[warn] 纹理生成失败，将使用 1.21.4 纹理"
+# 备用：如果生成失败则复制 1.21.4 纹理
+RUN if [ ! -f node_modules/prismarine-viewer/public/textures/1.21.11.png ]; then cp node_modules/prismarine-viewer/public/textures/1.21.4.png node_modules/prismarine-viewer/public/textures/1.21.11.png 2>/dev/null || true; fi
 
 # 复制 AI 玩家配置
 RUN mkdir -p /app/mindcraft/profiles
