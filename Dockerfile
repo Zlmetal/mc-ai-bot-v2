@@ -43,6 +43,9 @@ RUN npx patch-package || true
 # 打补丁：MindServer 绑定地址 localhost → 0.0.0.0（修复 Docker 内 IPv4/IPv6 问题）
 RUN sed -i "s/const host = 'localhost'/const host = '0.0.0.0'/g" src/mindcraft/mindserver.js || true
 
+# 打补丁：prismarine-viewer 添加 1.21.11 版本支持
+RUN sed -i "s/'1.21.4'/'1.21.4', '1.21.11'/g" node_modules/prismarine-viewer/viewer/lib/version.js || true
+
 # 复制 AI 玩家配置
 RUN mkdir -p /app/mindcraft/profiles
 COPY andrew.json /app/mindcraft/profiles/andrew.json
