@@ -1,6 +1,6 @@
 FROM node:20-slim
 
-# 安装依赖（包括 OpenGL 库、Xvfb 虚拟显示、Mesa 软件渲染）
+# 安装依赖（包括 OpenGL 库、Xvfb 虚拟显示、Intel GPU 驱动）
 RUN apt-get update && apt-get install -y \
     python3 \
     python3-distutils \
@@ -19,6 +19,11 @@ RUN apt-get update && apt-get install -y \
     libxrandr2 \
     libxxf86vm1 \
     xauth \
+    intel-media-va-driver \
+    i965-va-driver \
+    libva-drm2 \
+    libva-x11-2 \
+    vainfo \
     && ln -sf /usr/bin/python3 /usr/bin/python \
     && rm -rf /var/lib/apt/lists/*
 
