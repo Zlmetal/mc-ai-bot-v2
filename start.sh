@@ -7,8 +7,8 @@ if [ -d /dev/dri ]; then
   # 有 GPU 设备，使用硬件加速
   export DISPLAY=:99
   export LIBGL_ALWAYS_SOFTWARE=0
-  export MESA_LOADER_DRIVER_OVERRIDE=crocus
-  export MESA_GL_VERSION_OVERRIDE=4.5
+  export MESA_LOADER_DRIVER_OVERRIDE=iris
+  export MESA_GL_VERSION_OVERRIDE=4.6
   Xvfb :99 -screen 0 1024x768x24 -ac +extension GLX &> /dev/null &
   echo "[启动] Xvfb 虚拟显示已启动（Intel GPU 硬件加速）"
 else
