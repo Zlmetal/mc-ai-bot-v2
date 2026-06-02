@@ -33,8 +33,8 @@ RUN git clone https://github.com/mindcraft-bots/mindcraft.git mindcraft
 # 安装 MindCraft 依赖
 WORKDIR /app/mindcraft
 RUN npm install --ignore-scripts || true
-# 编译 gl 原生模块（需要 Mesa OpenGL 头文件）
-RUN npm rebuild gl 2>&1 || echo "[warn] gl 编译失败，视觉功能可能不可用"
+# 编译原生模块（需要 Mesa OpenGL 头文件）
+RUN npm rebuild canvas gl 2>&1 || echo "[warn] 原生模块编译失败，视觉功能可能不可用"
 # 应用补丁
 RUN npx patch-package || true
 
