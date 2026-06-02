@@ -186,6 +186,98 @@
                 <div class="help-text">需要配置 TTS</div>
               </div>
             </div>
+
+            <!-- 服务器连接 -->
+            <div style="font-weight:600; color:#4caf50; margin: 12px 0 8px; font-size:13px;">🖥️ 服务器连接</div>
+            <div class="field-row">
+              <div class="field">
+                <label>MC 版本</label>
+                <input type="text" id="mcVersion-${bot.id}" value="${bot.mcVersion || 'auto'}">
+                <div class="help-text">填 auto 自动检测</div>
+              </div>
+              <div class="field">
+                <label>认证方式</label>
+                <select id="mcAuth-${bot.id}">
+                  <option value="offline" ${bot.mcAuth !== 'microsoft' ? 'selected' : ''}>offline</option>
+                  <option value="microsoft" ${bot.mcAuth === 'microsoft' ? 'selected' : ''}>microsoft</option>
+                </select>
+              </div>
+            </div>
+            <div class="field-row">
+              <div class="field">
+                <label>服务器地址</label>
+                <input type="text" id="mcHost-${bot.id}" value="${bot.mcHost || ''}" placeholder="192.168.x.x">
+              </div>
+              <div class="field">
+                <label>服务器端口</label>
+                <input type="number" id="mcPort-${bot.id}" value="${bot.mcPort || 25565}">
+              </div>
+            </div>
+
+            <!-- 行为设置 -->
+            <div style="font-weight:600; color:#4caf50; margin: 12px 0 8px; font-size:13px;">🎮 行为设置</div>
+            <div class="field">
+              <label>基础人设</label>
+              <select id="baseProfile-${bot.id}">
+                <option value="assistant" ${bot.baseProfile === 'assistant' ? 'selected' : ''}>assistant 助手</option>
+                <option value="survival" ${bot.baseProfile === 'survival' ? 'selected' : ''}>survival 生存</option>
+                <option value="creative" ${bot.baseProfile === 'creative' ? 'selected' : ''}>creative 创造</option>
+                <option value="god_mode" ${bot.baseProfile === 'god_mode' ? 'selected' : ''}>god_mode 上帝</option>
+              </select>
+            </div>
+            <div class="field-row">
+              <div class="field">
+                <label><input type="checkbox" id="chatIngame-${bot.id}" ${bot.chatIngame !== false ? 'checked' : ''}> 游戏内聊天</label>
+              </div>
+              <div class="field">
+                <label><input type="checkbox" id="narrateBehavior-${bot.id}" ${bot.narrateBehavior !== false ? 'checked' : ''}> 播报行为</label>
+              </div>
+              <div class="field">
+                <label><input type="checkbox" id="chatBotMessages-${bot.id}" ${bot.chatBotMessages !== false ? 'checked' : ''}> Bot 间聊天</label>
+              </div>
+            </div>
+            <div class="field">
+              <label>只与指定玩家聊天</label>
+              <input type="text" id="onlyChatWith-${bot.id}" value="${(bot.onlyChatWith || []).join(',')}" placeholder="留空表示所有人，逗号分隔">
+              <div class="help-text">如：玩家A,玩家B</div>
+            </div>
+            <div class="field-row">
+              <div class="field">
+                <label>生成超时（秒）</label>
+                <input type="number" id="spawnTimeout-${bot.id}" value="${bot.spawnTimeout || 60}">
+              </div>
+            </div>
+
+            <!-- 代码执行 -->
+            <div style="font-weight:600; color:#4caf50; margin: 12px 0 8px; font-size:13px;">🛡️ 代码执行</div>
+            <div class="field-row">
+              <div class="field">
+                <label><input type="checkbox" id="allowCoding-${bot.id}" ${bot.allowCoding ? 'checked' : ''}> 允许执行代码</label>
+                <div class="help-text">⚠️ 仅在可信环境下开启</div>
+              </div>
+              <div class="field">
+                <label>代码超时（分钟）</label>
+                <input type="number" id="codeTimeout-${bot.id}" value="${bot.codeTimeout || -1}">
+                <div class="help-text">-1 无限制</div>
+              </div>
+            </div>
+            <div class="field-row">
+              <div class="field">
+                <label>最大命令数</label>
+                <input type="number" id="maxCommands-${bot.id}" value="${bot.maxCommands || -1}">
+                <div class="help-text">-1 无限制</div>
+              </div>
+              <div class="field">
+                <label>相关文档数</label>
+                <input type="number" id="relevantDocs-${bot.id}" value="${bot.relevantDocs || 5}">
+                <div class="help-text">-1 全部</div>
+              </div>
+            </div>
+            <div class="field">
+              <label>禁用的命令</label>
+              <input type="text" id="blockedActions-${bot.id}" value="${(bot.blockedActions || []).join(',')}" placeholder="逗号分隔，如：!setMode">
+            </div>
+
             <div class="form-actions">
               <button class="btn btn-primary" onclick="saveBot('${bot.id}')">保存</button>
               <button class="btn btn-danger" onclick="deleteBot('${bot.id}', '${bot.name}')">删除</button>
@@ -235,7 +327,25 @@
         numExamples: parseInt($('numExamples-' + id).value) || 2,
         allowVision: $('allowVision-' + id).checked,
         loadMemory: $('loadMemory-' + id).checked,
-        speak: $('speak-' + id).checked
+        speak: $('speak-' + id).checked,
+        // 服务器连接
+        mcVersion: $('mcVersion-' + id).value.trim(),
+        mcHost: $('mcHost-' + id).value.trim(),
+        mcPort: parseInt($('mcPort-' + id).value) || 25565,
+        mcAuth: $('mcAuth-' + id).value,
+        // 行为设置
+        baseProfile: $('baseProfile-' + id).value,
+        chatIngame: $('chatIngame-' + id).checked,
+        narrateBehavior: $('narrateBehavior-' + id).checked,
+        chatBotMessages: $('chatBotMessages-' + id).checked,
+        onlyChatWith: $('onlyChatWith-' + id).value.trim().split(',').filter(Boolean),
+        spawnTimeout: parseInt($('spawnTimeout-' + id).value) || 60,
+        // 代码执行
+        allowCoding: $('allowCoding-' + id).checked,
+        codeTimeout: parseInt($('codeTimeout-' + id).value) || -1,
+        maxCommands: parseInt($('maxCommands-' + id).value) || -1,
+        relevantDocs: parseInt($('relevantDocs-' + id).value) || 5,
+        blockedActions: $('blockedActions-' + id).value.trim().split(',').filter(Boolean)
       }
       const apiKey = $('apikey-' + id).value.trim()
       if (apiKey) data.apiKey = apiKey
