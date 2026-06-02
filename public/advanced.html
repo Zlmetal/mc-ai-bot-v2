@@ -50,40 +50,10 @@
 
     // settings.js 字段定义：{ key, label, type, help, default, options? }
     const FIELDS = [
-      // === 连接设置 ===
-      { section: '🔗 连接设置' },
-      { key: 'minecraft_version', label: 'Minecraft 版本', type: 'text', default: 'auto', help: '游戏版本号，填 "auto" 自动检测，或指定如 "1.21.6"' },
-      { key: 'host', label: 'MC 服务器地址', type: 'text', default: 'host.docker.internal', help: 'Minecraft 服务器 IP 或域名。本地测试填 "localhost"，Docker 内填 "host.docker.internal"' },
-      { key: 'port', label: 'MC 服务器端口', type: 'number', default: 55916, help: 'Minecraft 服务器端口号，填 -1 自动扫描开放端口' },
-      { key: 'auth', label: '认证方式', type: 'select', default: 'offline', options: ['offline', 'microsoft'], help: '"offline" 离线模式（不需要微软账号），"microsoft" 正版登录' },
-
       // === MindServer 设置 ===
       { section: '🖥️ MindServer 设置' },
       { key: 'mindserver_port', label: 'MindServer 端口', type: 'number', default: 8080, help: 'MindCraft 管理服务的端口，通常不需要修改' },
       { key: 'auto_open_ui', label: '自动打开 UI', type: 'checkbox', default: true, help: '启动时是否自动在浏览器中打开 MindCraft 控制台' },
-
-      // === Bot 配置 ===
-      { section: '🤖 Bot 配置' },
-      { key: 'base_profile', label: '基础人设', type: 'select', default: 'assistant', options: ['assistant', 'survival', 'creative', 'god_mode'], help: 'assistant=助手模式，survival=生存模式，creative=创造模式，god_mode=上帝模式' },
-      { key: 'only_chat_with', label: '只与指定玩家聊天', type: 'json', default: '[]', help: '限制 Bot 只听/回复指定玩家。留空 [] 表示对所有人可见。如 ["玩家A","玩家B"]' },
-
-      // === 聊天设置 ===
-      { section: '💬 聊天设置' },
-      { key: 'chat_ingame', label: '游戏内显示聊天', type: 'checkbox', default: true, help: 'Bot 的回复是否显示在 Minecraft 聊天栏中' },
-      { key: 'narrate_behavior', label: '播报行为', type: 'checkbox', default: true, help: 'Bot 执行简单操作时自动聊天（如"正在捡起物品！"）' },
-      { key: 'chat_bot_messages', label: 'Bot 间聊天', type: 'checkbox', default: true, help: '多个 Bot 之间是否互相聊天' },
-
-      // === 安全与代码 ===
-      { section: '🛡️ 安全与代码执行' },
-      { key: 'allow_insecure_coding', label: '允许执行代码', type: 'checkbox', default: false, help: '⚠️ 危险：允许 LLM 在你的电脑上写并执行代码。仅在可信环境下开启' },
-      { key: 'code_timeout_mins', label: '代码超时（分钟）', type: 'number', default: -1, help: '代码最长运行时间（分钟）。-1 表示无限制' },
-      { key: 'blocked_actions', label: '禁用的命令', type: 'json', default: '["!checkBlueprint","!checkBlueprintLevel","!getBlueprint","!getBlueprintLevel"]', help: '禁用的 Bot 命令列表，如 ["!setMode"]' },
-
-      // === 模型提示设置 ===
-      { section: '📊 模型提示设置' },
-      { key: 'relevant_docs_count', label: '相关文档数量', type: 'number', default: 5, help: '为模型选取的相关代码文档数量。-1 表示全部' },
-      { key: 'max_commands', label: '最大命令数', type: 'number', default: -1, help: '单次回复中可使用的最大命令数。-1 表示无限制' },
-      { key: 'show_command_syntax', label: '命令语法显示', type: 'select', default: 'full', options: ['full', 'shortened', 'none'], help: 'full=完整语法，shortened=简短，none=不显示' },
 
       // === 渲染设置 ===
       { section: '🎨 渲染设置' },
@@ -91,7 +61,6 @@
 
       // === 超时与调试 ===
       { section: '⏱️ 超时与调试' },
-      { key: 'spawn_timeout', label: '生成超时（秒）', type: 'number', default: 60, help: 'Bot 生成的超时时间（秒）。服务器慢时可增大此值' },
       { key: 'block_place_delay', label: '放置方块延迟（毫秒）', type: 'number', default: 0, help: '连续放置方块之间的延迟（毫秒），防止被服务器反作弊踢出' },
       { key: 'log_all_prompts', label: '记录所有提示词', type: 'checkbox', default: false, help: '是否将所有发送给模型的提示词记录到文件（调试用）' },
     ]
