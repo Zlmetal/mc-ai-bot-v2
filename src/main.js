@@ -234,6 +234,24 @@ function syncMindCraftConfig() {
           if (primaryBot.initMessage) settings.init_message = primaryBot.initMessage
           if (primaryBot.maxMessages) settings.max_messages = primaryBot.maxMessages
           if (primaryBot.numExamples) settings.num_examples = primaryBot.numExamples
+          // 服务器连接
+          if (primaryBot.mcVersion) settings.minecraft_version = primaryBot.mcVersion
+          if (primaryBot.mcHost) settings.host = primaryBot.mcHost
+          if (primaryBot.mcPort) settings.port = primaryBot.mcPort
+          if (primaryBot.mcAuth) settings.auth = primaryBot.mcAuth
+          // 行为设置
+          if (primaryBot.baseProfile) settings.base_profile = primaryBot.baseProfile
+          if (primaryBot.chatIngame !== undefined) settings.chat_ingame = primaryBot.chatIngame
+          if (primaryBot.narrateBehavior !== undefined) settings.narrate_behavior = primaryBot.narrateBehavior
+          if (primaryBot.chatBotMessages !== undefined) settings.chat_bot_messages = primaryBot.chatBotMessages
+          if (primaryBot.onlyChatWith) settings.only_chat_with = primaryBot.onlyChatWith
+          if (primaryBot.spawnTimeout) settings.spawn_timeout = primaryBot.spawnTimeout
+          // 代码执行
+          if (primaryBot.allowCoding !== undefined) settings.allow_insecure_coding = primaryBot.allowCoding
+          if (primaryBot.codeTimeout !== undefined) settings.code_timeout_mins = primaryBot.codeTimeout
+          if (primaryBot.maxCommands !== undefined) settings.max_commands = primaryBot.maxCommands
+          if (primaryBot.relevantDocs !== undefined) settings.relevant_docs_count = primaryBot.relevantDocs
+          if (primaryBot.blockedActions) settings.blocked_actions = primaryBot.blockedActions
         }
         const content = `const settings = ${JSON.stringify(settings, null, 4)}\nexport default settings\n`
         fs.writeFileSync(settingsPath, content, 'utf-8')
