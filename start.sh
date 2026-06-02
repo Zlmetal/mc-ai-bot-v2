@@ -2,12 +2,19 @@
 
 echo "[启动] MC AI Bot V2 启动中..."
 
-# 启动虚拟显示（支持 allow_vision）
-if command -v Xvfb &> /dev/null; then
+# 启动虚拟显示
+if [ -d /dev/dri ]; then
+  # 有 GPU 设备，使用硬件加速
   export DISPLAY=:99
-  Xvfb :99 -screen 0 1024x768x24 -ac &> /dev/null &
+  export LIBGL_ALWAYS_SOFTWARE=0
+  Xvfb :99 -screen 0 1024x768x24 -ac +extension GLX &> /dev/null &
+  echo "[启动] Xvfb 虚拟显示已启动（GPU 硬件加速）"
+else
+  # 无 GPU，使用软件渲染
+  export DISPLAY=:99
   export LIBGL_ALWAYS_SOFTWARE=1
-  echo "[启动] Xvfb 虚拟显示已启动"
+  Xvfb :99 -screen 0 1024x768x24 -ac &> /dev/null &
+  echo "[启动] Xvfb 虚拟显示已启动（软件渲染）"
 fi
 
 # 从环境变量读取配置
