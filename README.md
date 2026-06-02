@@ -203,7 +203,7 @@ MindCraft 支持多种 AI 模型：
 
 1. Bot 管理 → 编辑 Bot → 勾选「允许视觉」
 2. 确保 vision_model 已配置
-3. Docker 环境自动启用 Xvfb 虚拟显示 + Mesa 软件渲染
+3. Docker 环境自动启用 Xvfb 虚拟显示 + Intel GPU 硬件加速（无 GPU 时回退到软件渲染）
 
 ### 更新版本
 
@@ -245,7 +245,7 @@ A: 确保 `data/` 目录正确挂载（Docker）或存在（非 Docker）。记�
 A: 设置 MC_AUTH 为 `microsoft`，Bot 名字需与微软账号的 Minecraft 名字一致。
 
 **Q: 视觉功能不工作？**
-A: Docker 环境需要 Xvfb + Mesa（已内置）。在 Bot 管理页面开启「允许视觉」并配置 vision_model。
+A: 在 Bot 管理页面开启「允许视觉」并配置视觉模型。Docker 环境自动启用 Xvfb + Intel GPU 硬件加速（无 GPU 时回退到软件渲染）。
 
 ## 致谢
 
