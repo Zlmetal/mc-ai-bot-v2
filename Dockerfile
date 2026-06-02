@@ -50,8 +50,9 @@ RUN node -e "const fs=require('fs');const f='node_modules/prismarine-viewer/view
 # 生成 1.21.11 纹理 atlas
 COPY generate-textures.js ./
 RUN node generate-textures.js 1.21.11 || echo "[warn] 纹理生成失败，将使用 1.21.4 纹理"
-# 备用：如果生成失败则复制 1.21.4 纹理
+# 备用：如果生成失败则复制 1.21.4 的文件
 RUN if [ ! -f node_modules/prismarine-viewer/public/textures/1.21.11.png ]; then cp node_modules/prismarine-viewer/public/textures/1.21.4.png node_modules/prismarine-viewer/public/textures/1.21.11.png 2>/dev/null || true; fi
+RUN if [ ! -f node_modules/prismarine-viewer/public/blocksStates/1.21.11.json ]; then cp node_modules/prismarine-viewer/public/blocksStates/1.21.4.json node_modules/prismarine-viewer/public/blocksStates/1.21.11.json 2>/dev/null || true; fi
 
 # 复制 AI 玩家配置
 RUN mkdir -p /app/mindcraft/profiles
