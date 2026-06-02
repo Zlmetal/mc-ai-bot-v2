@@ -21,6 +21,7 @@ RUN apt-get update && apt-get install -y \
     xauth \
     intel-media-va-driver \
     vainfo \
+    unzip \
     && ln -sf /usr/bin/python3 /usr/bin/python \
     && rm -rf /var/lib/apt/lists/*
 
@@ -47,9 +48,11 @@ RUN sed -i "s/const host = 'localhost'/const host = '0.0.0.0'/g" src/mindcraft/m
 
 # 打补丁：prismarine-viewer 添加 1.21.11 版本支持
 RUN node -e "const fs=require('fs');const f='node_modules/prismarine-viewer/viewer/lib/version.js';let c=fs.readFileSync(f,'utf8');c=c.replace(\"'1.21.4'\",\"'1.21.4', '1.21.11'\");fs.writeFileSync(f,c)" || true
-# 生成 1.21.11 纹理 atlas
+# 生成 1.21.11 纹理 atlas（从 Minecraft 客户端 JAR 提取）
 COPY generate-textures.js ./
 RUN node generate-textures.js 1.21.11 || echo "[warn] 纹理生成失败，将使用 1.21.4 纹理"
+# 清理缓存
+RUN rm -rf .mc-cache 2>/dev/null || true
 # 备用：如果生成失败则复制 1.21.4 的文件
 RUN if [ ! -f node_modules/prismarine-viewer/public/textures/1.21.11.png ]; then cp node_modules/prismarine-viewer/public/textures/1.21.4.png node_modules/prismarine-viewer/public/textures/1.21.11.png 2>/dev/null || true; fi
 RUN if [ ! -f node_modules/prismarine-viewer/public/blocksStates/1.21.11.json ]; then cp node_modules/prismarine-viewer/public/blocksStates/1.21.4.json node_modules/prismarine-viewer/public/blocksStates/1.21.11.json 2>/dev/null || true; fi
