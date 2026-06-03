@@ -554,6 +554,35 @@ app.post('/api/bots/:id/toggle', (req, res) => {
   }
 })
 
+app.post('/api/bot-control', (req, res) => {
+  try {
+    const { botName, action } = req.body
+    if (!botName || !action) return res.json({ success: false, message: '参数不完整' })
+    if (!connectedToMindCraft || !mindcraftSocket) {
+      return res.json({ success: false, message: '未连接到 MindCraft' })
+    }
+    
+    switch (action) {
+      case 'stop':
+        mindcraftSocket.emit('send-message', botName, { message: '!stop', from: 'WEB' })
+        res.json({ success: true, message: `已发送停止指令给 ${botName}` })
+        break
+      case 'stay':
+        mindcraftSocket.emit('send-message', botName, { message: '!stay(-1)', from: 'WEB' })
+        res.json({ success: true, message: `已发送原地等待指令给 ${botName}` })
+        break
+      case 'restart':
+        mindcraftSocket.emit('restart-agent', botName)
+        res.json({ success: true, message: `已重启 ${botName}` })
+        break
+      default:
+        res.json({ success: false, message: '未知操作' })
+    }
+  } catch (err) {
+    res.status(500).json({ success: false, message: err.message })
+  }
+})
+
 // ========== API: 高级设置 (settings.js) ==========
 
 app.get('/api/mindcraft-settings', (req, res) => {
