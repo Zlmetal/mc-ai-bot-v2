@@ -2,8 +2,22 @@
 
 echo "[启动] MC AI Bot V2 启动中..."
 
-# 启动虚拟显示
-if [ -d /dev/dri ]; then
+# 清理旧的 Xvfb 进程
+pkill -f 'Xvfb :99' 2>/dev/null || true
+sleep 1
+
+# 启动虚拟显示（带 GPU 检测重试）
+GPU_READY=false
+for i in 1 2 3; do
+  if [ -d /dev/dri ] && [ -w /dev/dri/renderD128 ]; then
+    GPU_READY=true
+    break
+  fi
+  echo "[启动] 等待 GPU 设备就绪... ($i/3)"
+  sleep 2
+done
+
+if [ "$GPU_READY" = true ]; then
   # 有 GPU 设备，使用硬件加速
   export DISPLAY=:99
   export LIBGL_ALWAYS_SOFTWARE=0
@@ -11,11 +25,21 @@ if [ -d /dev/dri ]; then
   export MESA_GL_VERSION_OVERRIDE=4.6
   export ANGLE_DEFAULT_PLATFORM=none
   Xvfb :99 -screen 0 1024x768x24 -ac +extension GLX &> /dev/null &
-  echo "[启动] Xvfb 虚拟显示已启动（Intel GPU 硬件加速）"
+  sleep 1
+  # 验证 Xvfb 是否启动成功
+  if ps aux | grep -q '[X]vfb :99'; then
+    echo "[启动] Xvfb 虚拟显示已启动（Intel GPU 硬件加速）"
+  else
+    echo "[启动] Xvfb 启动失败，回退到软件渲染"
+    export LIBGL_ALWAYS_SOFTWARE=1
+    export MESA_LOADER_DRIVER_OVERRIDE=
+    Xvfb :99 -screen 0 1024x768x24 -ac &> /dev/null &
+  fi
 else
   # 无 GPU，使用软件渲染
   export DISPLAY=:99
   export LIBGL_ALWAYS_SOFTWARE=1
+  export MESA_LOADER_DRIVER_OVERRIDE=
   Xvfb :99 -screen 0 1024x768x24 -ac &> /dev/null &
   echo "[启动] Xvfb 虚拟显示已启动（软件渲染）"
 fi
