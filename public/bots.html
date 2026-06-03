@@ -51,6 +51,18 @@
     .btn-toggle.on { background: rgba(76,175,80,0.2); color: #4caf50; }
     .btn-toggle.off { background: rgba(244,67,54,0.2); color: #f44336; }
 
+    /* Bot 控制按钮 */
+    .bot-controls {
+      display: flex; gap: 6px; padding: 0 14px 10px; border-top: 1px solid #252535;
+      padding-top: 10px;
+    }
+    .btn-ctrl {
+      flex: 1; padding: 6px 0; border: 1px solid #333; border-radius: 6px;
+      background: #1e1e2e; color: #aaa; font-size: 11px; cursor: pointer;
+      transition: all 0.2s;
+    }
+    .btn-ctrl:active { background: #2563eb; color: white; border-color: #2563eb; }
+
     /* 添加按钮 */
     .btn-add { position: fixed; bottom: 20px; left: 50%; transform: translateX(-50%); padding: 12px 32px; background: #2563eb; color: white; border: none; border-radius: 8px; font-size: 15px; cursor: pointer; z-index: 10; box-shadow: 0 4px 12px rgba(37,99,235,0.4); }
     .btn-add:active { transform: translateX(-50%) scale(0.96); }
@@ -120,6 +132,13 @@
               <button class="btn btn-toggle ${bot.enabled !== false ? 'on' : 'off'}" onclick="event.stopPropagation(); toggleBot('${bot.id}')">${bot.enabled !== false ? '启用' : '禁用'}</button>
             </div>
           </div>
+          ${bot.online ? `
+          <div class="bot-controls" onclick="event.stopPropagation()">
+            <button class="btn-ctrl" onclick="controlBot('${bot.name}', 'stop')">⏹ 停止动作</button>
+            <button class="btn-ctrl" onclick="controlBot('${bot.name}', 'stay')">🧍 原地等待</button>
+            <button class="btn-ctrl" onclick="controlBot('${bot.name}', 'restart')">🔄 重启</button>
+          </div>
+          ` : ''}
           <div class="bot-form" id="form-${bot.id}">
             <div class="field">
               <label>名字</label>
@@ -291,6 +310,22 @@
     function toggleForm(id) {
       const form = $('form-' + id)
       if (form) form.classList.toggle('active')
+    }
+
+    async function controlBot(botName, action) {
+      try {
+        const r = await fetch('/api/bot-control', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ botName, action })
+        })
+        const d = await r.json()
+        if (d.success) {
+          showMessage(d.message, 'success')
+        } else {
+          showMessage(d.message, 'error')
+        }
+      } catch (e) { showMessage(e.message, 'error') }
     }
 
     async function toggleBot(id) {
