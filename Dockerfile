@@ -22,6 +22,7 @@ RUN apt-get update && apt-get install -y \
     intel-media-va-driver \
     vainfo \
     unzip \
+    procps \
     && ln -sf /usr/bin/python3 /usr/bin/python \
     && rm -rf /var/lib/apt/lists/*
 
