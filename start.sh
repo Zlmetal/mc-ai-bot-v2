@@ -27,7 +27,7 @@ if [ "$GPU_READY" = true ]; then
   Xvfb :99 -screen 0 1024x768x24 -ac +extension GLX &> /dev/null &
   sleep 1
   # 验证 Xvfb 是否启动成功
-  if ps aux | grep -q '[X]vfb :99'; then
+  if pgrep -f 'Xvfb :99' > /dev/null 2>&1; then
     echo "[启动] Xvfb 虚拟显示已启动（Intel GPU 硬件加速）"
   else
     echo "[启动] Xvfb 启动失败，回退到软件渲染"
