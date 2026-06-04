@@ -380,7 +380,7 @@
         codeTimeout: parseInt($('codeTimeout-' + id).value) || -1,
         maxCommands: parseInt($('maxCommands-' + id).value) || -1,
         relevantDocs: parseInt($('relevantDocs-' + id).value) || 5,
-        blockedActions: $('blockedActions-' + id).value.trim().split(',').filter(Boolean)
+        blockedActions: $('blockedActions-' + id).value.trim().split(',').map(s => s.trim().replace(/^["']+|["']+$/g, '')).filter(Boolean)
       }
       const apiKey = $('apikey-' + id).value.trim()
       if (apiKey) data.apiKey = apiKey
