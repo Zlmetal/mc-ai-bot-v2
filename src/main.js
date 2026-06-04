@@ -251,7 +251,7 @@ function syncMindCraftConfig() {
           if (primaryBot.codeTimeout !== undefined) settings.code_timeout_mins = primaryBot.codeTimeout
           if (primaryBot.maxCommands !== undefined) settings.max_commands = primaryBot.maxCommands
           if (primaryBot.relevantDocs !== undefined) settings.relevant_docs_count = primaryBot.relevantDocs
-          if (primaryBot.blockedActions) settings.blocked_actions = primaryBot.blockedActions
+          if (primaryBot.blockedActions) settings.blocked_actions = primaryBot.blockedActions.map(s => s.trim().replace(/^["']+|["']+$/g, '')).filter(Boolean)
         }
         const content = `const settings = ${JSON.stringify(settings, null, 4)}\nexport default settings\n`
         fs.writeFileSync(settingsPath, content, 'utf-8')
